@@ -45,7 +45,7 @@
  */
 
 float BRUSH_RADIUS = 50.0;
-float MESH_RESOLUTION = 200;
+float MESH_RESOLUTION = 50;
 float INITIAL_DROPLET_RADIUS = 300;
 boolean NORMAL_FLAG = false;
 boolean CURVATURE_FLAG = false;
@@ -82,8 +82,7 @@ void draw(){
   // Visualize
   drawBrushes();
 
-  //PolylineSplash my_splash = new PolylineSplash(width, height, MESH_RESOLUTION, INITIAL_DROPLET_RADIUS);
-
+  my_splash.refineMesh();
   my_splash.viewPoints();
   if(NORMAL_FLAG){
   	my_splash.drawPointNormals();
@@ -133,6 +132,16 @@ void keyPressed(){
   }
 }
 
+void mouseWheel(MouseEvent event) {
+
+	float e = event.getCount();
+	if(e > 0.0){
+		BRUSH_RADIUS *= 1.1;
+	}else{
+		BRUSH_RADIUS *= 0.9; 
+	}
+}
+
 
 /////////////////////////////////////////////////////////////////
 void drawBrushes() {
@@ -166,7 +175,6 @@ void mouseDragged() {
   // Slide brush to newP:
   brush.setPosition(new_position);
 }
-
 
 void deform(){
 	//simply move all points within initial radius of circle over by force

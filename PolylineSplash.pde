@@ -1,6 +1,8 @@
 
 import java.util.*;
 
+float MESH_THRESHOLD = 10;
+
 public class PolylineSplash{
 
 	ArrayList<PVector> splash;
@@ -18,6 +20,8 @@ public class PolylineSplash{
 															(float)0));
 
 		}
+
+		MESH_THRESHOLD = PVector.dist(splash.get(1), splash.get(2));
 	}
 
 	// Copy Constructor
@@ -127,6 +131,8 @@ public class PolylineSplash{
 
 	// Turning Angle Curvature calculation
 	private void getCurvature(){
+		curvatures.clear();
+
 		PVector x_axis = new PVector(1.0, 0.0, 0.0);
 
 		for(int i = 0; i < splash.size(); i++){
@@ -165,11 +171,38 @@ public class PolylineSplash{
 		color curvature_color = color(237, 164, 245);
 		float curvature_scale = 50;
 
-		for(int i = 0; i < curvatures.size(); i++){
+		for(int i = 0; i < splash.size(); i++){
 			drawVectorWithLabel(splash.get(i), normals.get(i), curvatures.get(i), curvature_color, curvature_scale);
 		}
 	}
 
+
+	public void refineMesh(){
+	  int k = 0;
+
+	  while(k < splash.size()){
+
+	  	PVector a = splash.get(k);
+	  	PVector b = splash.get((k+1)%splash.size());
+	  	float dist = a.dist(b);
+
+	  	//subdivide
+	  	if(dist > 2*MESH_THRESHOLD){
+	  		PVector mid = new PVector();
+	  		mid = PVector.lerp(a, b, 0.5);
+	  		splash.add((k+1)%splash.size(), mid);
+	  	}
+
+	  	//coarsen
+	  	else if(dist < MESH_THRESHOLD/2.4){
+	  		a.lerp(b, 0.5);
+	  		splash.remove((k+1)%splash.size());
+	  		k--;
+	  	}
+
+	  	k++;
+	  }
+	}
 
 } 
 
