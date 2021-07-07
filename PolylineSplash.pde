@@ -11,6 +11,7 @@ public class PolylineSplash{
 	private ArrayList<Float> curvatures;
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
 	ArrayList<Float> weight; //represents alpha_i/mass
+	private ArrayList<Float> geodesic;
 
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
 
@@ -19,6 +20,7 @@ public class PolylineSplash{
 		curvatures = new ArrayList<Float>();
 		jacobian = new ArrayList<PVector>();
 		weight = new ArrayList<Float>();
+		geodesic = new ArrayList<Float>();
 		for(int i = 0; i < mesh_resolution; i++){
 			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
 															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
@@ -43,6 +45,7 @@ public class PolylineSplash{
 		normals = new ArrayList<PVector>();
 		curvatures = new ArrayList<Float>();
 		jacobian = new ArrayList<PVector>();
+		geodesic = new ArrayList<Float>();
 	}
 
 	public void viewSurface(){
@@ -321,16 +324,126 @@ public class PolylineSplash{
 		}
 
 		float lambda = numerator/denominator;
+		//println("lambda: " + lambda);
 
 		// del position
 		for(int i = 0; i < splash.size(); i++){
+
+			// if(i == 1){
+			// 	println("jacobian.get(i).x: " + jacobian.get(1).x + " jacobian.get(i).y " + jacobian.get(1).y + 
+			// 					" lambda: " + lambda + " weight.get(i) " + )
+			// }
 
 			PVector del_position = new PVector(	jacobian.get(i).x*lambda*weight.get(i),
 																					jacobian.get(i).y*lambda*weight.get(i));
 			// update position
 			splash.get(i).add(PVector.mult(del_position, 0.001));
 		}
+	}
 
+	public void mcf(float x, float y, float brush_radius, boolean g_flag){
+		getNormals();
+		getCurvature();
+		getGeodesic(x, y, brush_radius);
+
+		float flow_scale = 2;
+		
+		// Explict Euler
+		for(int i = 0; i < splash.size(); i++){
+			float k = curvatures.get(i);
+			PVector normal_dir = normals.get(i);
+
+			float geo_scale = 1;
+			if(g_flag){
+				geo_scale *= geodesic.get(i);
+			}
+
+			splash.get(i).add(PVector.mult(normal_dir, geo_scale*flow_scale*k));
+		}
+	}
+
+	private void getGeodesic(float x, float y, float brush_radius){
+		geodesic.clear();
+
+		PVector center = new PVector(x, y, 0.0);
+		int closest_point_index = indexOfClosestPoint(center);
+
+		for (int k=0; k < splash.size(); k++)	geodesic.add(Float.MAX_VALUE);
+		geodesic.set(closest_point_index, 0.0);
+		
+		// SWEEP DOWN/CCW:
+		float distSum = 0;
+		PVector pLast = splash.get(closest_point_index);
+		int     iNext = closest_point_index;
+		for (int k=1; k < geodesic.size(); k++) {
+			iNext--;
+			if (iNext < 0) iNext = geodesic.size()-1;
+			PVector pNext = splash.get(iNext);
+	    distSum += pNext.dist(pLast);
+	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+	    pLast = pNext;
+		}
+
+		// Sweep UP/CW;
+		distSum = 0;
+		pLast		=	splash.get(closest_point_index);
+		iNext 	= closest_point_index;
+		for (int k=1; k < geodesic.size(); k++) {
+			iNext++;
+			if (iNext >= geodesic.size()) iNext = 0;
+			PVector pNext = splash.get(iNext);
+	    distSum += pNext.dist(pLast);
+	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+	    pLast = pNext;
+		}	
+
+
+		// if within radius then set distance to 0;
+		for (int k = 0; k < geodesic.size(); k++){
+			if(center.dist(splash.get(k)) < brush_radius){
+				geodesic.set(k, 0.0);
+			}
+		}		
+
+		// scale geodesic weight
+		float maximum_dist = Float.MIN_VALUE;
+		for (int k = 0; k < geodesic.size(); k++){
+			if(geodesic.get(k) > maximum_dist){
+				maximum_dist = geodesic.get(k);
+			}
+		}
+
+		for (int k = 0; k < geodesic.size(); k++){
+			float g = geodesic.get(k);
+			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
+		}		
+	}
+
+	private int indexOfClosestPoint(PVector center) {
+	  int   minIndex = -1;
+	  float minDist  = Float.MAX_VALUE;
+	  for (int k=0; k<splash.size(); k++) {
+	    PVector pk = splash.get(k);
+	    float   dk = center.dist(pk);//sloth sqrt
+	    if (dk < minDist) {
+	      minDist = dk;
+	      minIndex = k;
+	    }
+	  }
+	  return minIndex;
+	}
+
+	public void showGeodesic(float x, float y, float brush_radius){
+		getGeodesic(x, y, brush_radius);
+		getNormals();
+
+		float generic_scale = 50;
+		color geo_color = color(46, 166, 50);
+
+		for(int i = 0; i < splash.size(); i++){
+			float geo_scale = generic_scale * geodesic.get(i);
+			drawVector(splash.get(i), normals.get(i), geo_color, geo_scale);
+		}
 	}
 } 
 

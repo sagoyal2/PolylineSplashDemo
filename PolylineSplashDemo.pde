@@ -52,7 +52,9 @@ boolean NORMAL_FLAG = false;
 boolean CURVATURE_FLAG = false;
 boolean WEIGHT_FLAG = false;
 boolean WEIGHT_MODE = false;
-
+boolean MCF_FLAG = false;
+int mcf_clock = 100;
+boolean GEODESIC_FLAG = false;
 
 
 float initial_area = -1.0;
@@ -83,7 +85,7 @@ void draw(){
   background(255);
 
   fill(0);
-  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a]", 5, 10); 
+  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g]", 5, 10); 
   text("#UNDOS: " + undo_splash.size(), 5, 25);
 
 
@@ -110,6 +112,23 @@ void draw(){
   if(WEIGHT_MODE){
   	fill(237, 159, 50);
   	text("WEIGHT_ADJUSTMENT_MODE ON - press[a] to remove", 5, 85);
+  }
+  if(MCF_FLAG){
+  	if(mcf_clock < 250){
+  		fill(0);
+  		text("Applying Mean Curvature Flow on iteration i: " + mcf_clock, 5, 100);
+  		my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
+  		mcf_clock++;
+  	}
+  	else{
+  		saveSplashState();
+  		MCF_FLAG = false;
+  		mcf_clock = 0;
+  	}
+  }
+  if(GEODESIC_FLAG){
+  	fill(46, 166, 50);
+  	text("GEODESIC_FLAG ON - press[g] to remove", 5, 115);
   }
   fill(0);
 
@@ -147,6 +166,9 @@ void keyPressed(){
   //   BRUSH_RADIUS *= 0.9; 
   //   // brush.setRadius(eps);
   // }
+  if (key == 'm'){
+  	MCF_FLAG = true;
+  }
   if (key == 'w'){
   	WEIGHT_FLAG = !WEIGHT_FLAG;
   }
@@ -157,6 +179,9 @@ void keyPressed(){
     if (undo_splash.size() > 0) {
       my_splash = undo_splash.pollFirst();
     }
+  }
+  if (key == 'g'){
+  	GEODESIC_FLAG = !GEODESIC_FLAG;
   }
 }
 
@@ -199,6 +224,10 @@ void drawBrush(float x, float y)
   	stroke(0,0,0);
   }
   circle(x, y, 2*BRUSH_RADIUS);
+
+  if(GEODESIC_FLAG){
+  	my_splash.showGeodesic(x, y, BRUSH_RADIUS);
+  }
 }
 
 void mousePressed() {
