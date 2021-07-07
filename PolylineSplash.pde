@@ -172,13 +172,6 @@ public class PolylineSplash{
 			PVector current = splash.get(i);
 			PVector next 		= splash.get((i + 1)%splash.size());
 
-
-			// PVector leg_one = PVector.sub(current, prior).normalize();
-			// PVector leg_two = PVector.sub(next, current).normalize();
-
-			// float exterior_angle = acos(PVector.dot(leg_one, leg_two));
-
-
 			PVector leg_one = PVector.sub(current, prior).normalize();
 			PVector leg_two = PVector.sub(next, current).normalize();
 
@@ -202,8 +195,11 @@ public class PolylineSplash{
 	private void drawVectorWithLabel(PVector position, PVector vector, float label, color c, float scale){
 		stroke(c);
 		fill(c);
-		line(position.x, position.y, position.x +  scale*vector.x, position.y + scale*vector.y);
-		text(nf(label,1, 7), position.x + (scale+1)*vector.x, position.y + (scale+1)*vector.y);
+
+		float sign = label/abs(label);
+
+		line(position.x, position.y, position.x +  sign*scale*vector.x, position.y + sign*scale*vector.y);
+		text(nf(label,1, 7), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
 		stroke(0, 0, 0);
 	}
 
@@ -235,8 +231,7 @@ public class PolylineSplash{
 	  		mid = PVector.lerp(a, b, 0.5);
 	  		splash.add((k+1)%splash.size(), mid);
 
-
-	  		float mid_weight = 0.5*(weight.get(k) + weight.get(k+1));
+	  		float mid_weight = 0.5*(weight.get(k) + weight.get((k+1) %weight.size()));
 	  		weight.add((k+1)%splash.size(), mid_weight);
 	  	}
 
@@ -285,6 +280,33 @@ public class PolylineSplash{
 	public void projectPositions(float initial_area){
 		getJacobian();
 
+		// // calculate lambda
+		// float current_area = getArea();
+		// //println("current_area: " + current_area);
+
+
+		// float numerator = -1*(current_area - initial_area);
+
+		// float denominator_x = 0.0;
+		// float denominator_y = 0.0;
+		// for(int i = 0; i < splash.size(); i++){
+		// 	denominator_x += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
+		// 	denominator_y += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
+		// }
+
+		// float lambda_x = numerator/denominator_x;
+		// float lambda_y = numerator/denominator_y;
+
+		// // del position
+		// for(int i = 0; i < splash.size(); i++){
+
+		// 	PVector del_position = new PVector(	jacobian.get(i).x*lambda_x*weight.get(i),
+		// 																			jacobian.get(i).y*lambda_y*weight.get(i));
+		// 	// update position
+		// 	splash.get(i).add(PVector.mult(del_position, 1));
+		// }
+
+
 		// calculate lambda
 		float current_area = getArea();
 		//println("current_area: " + current_area);
@@ -292,24 +314,23 @@ public class PolylineSplash{
 
 		float numerator = -1*(current_area - initial_area);
 
-		float denominator_x = 0.0;
-		float denominator_y = 0.0;
+		float denominator = 0.0;
 		for(int i = 0; i < splash.size(); i++){
-			denominator_x += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
-			denominator_y += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
+			denominator += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
+			denominator += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
 		}
 
-		float lambda_x = numerator/denominator_x;
-		float lambda_y = numerator/denominator_y;
+		float lambda = numerator/denominator;
 
 		// del position
 		for(int i = 0; i < splash.size(); i++){
 
-			PVector del_position = new PVector(	jacobian.get(i).x*lambda_x*weight.get(i),
-																					jacobian.get(i).y*lambda_y*weight.get(i));
+			PVector del_position = new PVector(	jacobian.get(i).x*lambda*weight.get(i),
+																					jacobian.get(i).y*lambda*weight.get(i));
 			// update position
 			splash.get(i).add(PVector.mult(del_position, 0.001));
 		}
+
 	}
 } 
 
