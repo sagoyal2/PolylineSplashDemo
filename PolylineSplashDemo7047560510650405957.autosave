@@ -1,4 +1,4 @@
-
+ww
 
 
 
@@ -47,15 +47,12 @@
 float BRUSH_RADIUS = 50.0;
 float MESH_RESOLUTION = 50;
 float INITIAL_DROPLET_RADIUS = 300;
-
 boolean NORMAL_FLAG = false;
 boolean CURVATURE_FLAG = false;
 boolean WEIGHT_FLAG = false;
 boolean WEIGHT_MODE = false;
 
 
-
-float initial_area = -1.0;
 SplashBrush brush;
 PolylineSplash my_splash;
 LinkedList<PolylineSplash> undo_splash;
@@ -73,9 +70,6 @@ void reset(){
 	// take in shape parameter?
 	my_splash 		= new PolylineSplash(width, height, MESH_RESOLUTION, INITIAL_DROPLET_RADIUS);
 	undo_splash 	= new LinkedList<PolylineSplash>();
-
-	float initial_area = my_splash.getArea();
-  println("initial_area: " + initial_area);
 }
 
 
@@ -83,7 +77,7 @@ void draw(){
   background(255);
 
   fill(0);
-  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a]", 5, 10); 
+  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w]", 5, 10); 
   text("#UNDOS: " + undo_splash.size(), 5, 25);
 
 
@@ -94,24 +88,13 @@ void draw(){
   my_splash.viewPoints();
   if(NORMAL_FLAG){
   	my_splash.drawPointNormals();
-  	fill(52, 125, 235);
-  	text("NORMAL_FLAG ON - press[n] to remove", 5, 40); 
   }
   if(CURVATURE_FLAG){
   	my_splash.labelCurvature();
-  	fill(237, 164, 245);
-  	text("CURVATURE_FLAG ON - press[k] to remove", 5, 55);
   }
   if(WEIGHT_FLAG){
   	my_splash.showWeight();
-  	fill(237, 159, 50);
-  	text("WEIGHT_FLAG ON - press[w] to remove", 5, 70);
   }
-  if(WEIGHT_MODE){
-  	fill(237, 159, 50);
-  	text("WEIGHT_ADJUSTMENT_MODE ON - press[a] to remove", 5, 85);
-  }
-  fill(0);
 
   // float area = my_splash.getArea();
   // println("Area: " + area);
@@ -224,7 +207,7 @@ void mouseDragged() {
 }
 
 void deform(){
-	// Simply move all points within initial radius of circle over by force
+	//simply move all points within initial radius of circle over by force
 	for (PVector p : my_splash.splash){
 		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
@@ -232,15 +215,12 @@ void deform(){
 			p.y += brush.force.y;
 		}
   }
-  
-  // Move onto constraint
-  my_splash.aprojectPositions(initial_area);
 }
 
 void reweight(float weigth_scale){
   for(int i = 0; i < my_splash.splash.size(); i++){
   	PVector p = my_splash.splash.get(i);
-  	float sqr_dist = (p.x - mouseX)*(p.x - mouseX) + (p.y - mouseY)*(p.y - mouseY);
+  	float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
 			float prior_weight = my_splash.weight.get(i);
 			my_splash.weight.set(i, weigth_scale*prior_weight);
@@ -248,29 +228,3 @@ void reweight(float weigth_scale){
   }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

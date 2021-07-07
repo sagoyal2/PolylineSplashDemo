@@ -8,17 +8,21 @@ public class PolylineSplash{
 	ArrayList<PVector> splash;
 	private ArrayList<PVector> normals; //unit normals
 	private ArrayList<Float> curvatures;
+	private ArrayList<PVector> jacobian; //1 by # of mesh points
+	ArrayList<Float> weight; //represents alpha_i/mass
 
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
 
 		splash 	= new ArrayList<PVector>();
 		normals = new ArrayList<PVector>();
 		curvatures = new ArrayList<Float>();
+		jacobian = new ArrayList<PVector>();
+		weight = new ArrayList<Float>();
 		for(int i = 0; i < mesh_resolution; i++){
 			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
 															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
 															(float)0));
-
+			weight.add(1.0);
 		}
 
 		MESH_THRESHOLD = PVector.dist(splash.get(1), splash.get(2));
@@ -28,13 +32,16 @@ public class PolylineSplash{
 	public PolylineSplash(PolylineSplash copy_polylinesplash){
 
 		splash 	= new ArrayList<PVector>();
+		weight = new ArrayList<Float>();
 
 		for(int i = 0; i < copy_polylinesplash.splash.size(); i++){
 			splash.add(copy_polylinesplash.splash.get(i).copy());
+			weight.add(copy_polylinesplash.weight.get(i)); //I think this is correct?
 		}
 
 		normals = new ArrayList<PVector>();
 		curvatures = new ArrayList<Float>();
+		jacobian = new ArrayList<PVector>();
 	}
 
 	public void viewSurface(){
@@ -59,15 +66,14 @@ public class PolylineSplash{
 
 	// https://stackoverflow.com/questions/1406029/how-to-calculate-the-volume-of-a-3d-mesh-object-the-surface-of-which-is-made-up/1568551#1568551
 	public float getArea(){
-
 		float area = 0.0;
-
+		
 		for(int i = 0; i < splash.size(); i++){
 			PVector a = splash.get(i);
 			PVector b = splash.get((i+1)%splash.size());
 			area += -b.x*a.y + a.x*b.y;
   	}
-
+  	
   	return area/2.0;
 	}
 
@@ -162,6 +168,7 @@ public class PolylineSplash{
 		fill(c);
 		line(position.x, position.y, position.x +  scale*vector.x, position.y + scale*vector.y);
 		text(label, position.x + (scale+1)*vector.x, position.y + (scale+1)*vector.y);
+		stroke(0, 0, 0);
 	}
 
 	public void labelCurvature(){
@@ -191,17 +198,62 @@ public class PolylineSplash{
 	  		PVector mid = new PVector();
 	  		mid = PVector.lerp(a, b, 0.5);
 	  		splash.add((k+1)%splash.size(), mid);
+	  		weight.add((k+1)%splash.size(), 1.0);
 	  	}
 
 	  	//coarsen
 	  	else if(dist < MESH_THRESHOLD/2.4){
 	  		a.lerp(b, 0.5);
 	  		splash.remove((k+1)%splash.size());
+	  		weight.remove((k+1)%splash.size());
 	  		k--;
 	  	}
 
 	  	k++;
 	  }
+	}
+
+
+	public void showWeight(){
+		getNormals();
+
+		color weight_color = color(237, 159, 50);
+		float weight_scale = 50;
+
+		for(int i = 0; i < splash.size(); i++){
+			drawVectorWithLabel(splash.get(i), normals.get(i), weight.get(i), weight_color, weight_scale);
+		}
+	}
+
+	public void getJacobian(){
+		jacobian.clear();
+
+		jacobian = new ArrayList<PVector>();
+
+		for(int i = 0; i < splash.size(); i++){
+			PVector prior 	= splash.get((i + splash.size() - 1)%splash.size());
+			// PVector current = splash.get(i);
+			PVector next 		= splash.get((i + 1)%splash.size());
+
+			float dC_dx = 0.5*(-1*prior.y + next.y);
+			float dC_dy = 0.5*(prior.x + -1*next.x);
+
+			jacobian.add(new PVector(dC_dx, dC_dy, 0.0));
+		}
+	}
+
+	// Project onto constraint
+	public void projectPositions(float initial_area){
+
+		// calculate lambda
+
+		float current_area = getArea();
+		println("current_area: " + current_area);
+
+
+		// find del_position vector
+
+
 	}
 
 } 
