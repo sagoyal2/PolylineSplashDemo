@@ -136,10 +136,35 @@ public class PolylineSplash{
 	// other possible: 	Drift (the center of mass does not drift from origin)
 	//									Round (flow is stationary for circular curves)
 
-	// Turning Angle Curvature calculation
 	private void getCurvature(){
 		curvatures.clear();
 
+		// Turning Angle:
+		// PVector x_axis = new PVector(1.0, 0.0, 0.0);
+
+		// for(int i = 0; i < splash.size(); i++){
+		// 	PVector prior 	= splash.get((i + splash.size() - 1)%splash.size());
+		// 	PVector current = splash.get(i);
+		// 	PVector next 		= splash.get((i + 1)%splash.size());
+
+
+		// 	PVector leg_one = PVector.sub(current, prior).normalize();
+		// 	PVector leg_two = PVector.sub(next, current).normalize();
+
+		// 	float angle_one = acos(PVector.dot(leg_one, x_axis));
+		// 	float angle_two = acos(PVector.dot(leg_two, x_axis));
+
+		// 	//here we add a -1 because we want the normal to point outwards, and positive curvature means outwards
+		// 	float k = angle_one - angle_two;
+		// 	//k*=-1;
+
+		// 	curvatures.add(k);
+		// }
+
+		//println("curvature: " + curvatures.get(1));
+
+
+		// Osculating Circle:
 		PVector x_axis = new PVector(1.0, 0.0, 0.0);
 
 		for(int i = 0; i < splash.size(); i++){
@@ -148,16 +173,26 @@ public class PolylineSplash{
 			PVector next 		= splash.get((i + 1)%splash.size());
 
 
+			// PVector leg_one = PVector.sub(current, prior).normalize();
+			// PVector leg_two = PVector.sub(next, current).normalize();
+
+			// float exterior_angle = acos(PVector.dot(leg_one, leg_two));
+
+
 			PVector leg_one = PVector.sub(current, prior).normalize();
 			PVector leg_two = PVector.sub(next, current).normalize();
 
 			float angle_one = acos(PVector.dot(leg_one, x_axis));
 			float angle_two = acos(PVector.dot(leg_two, x_axis));
 
-			//here we add a -1 because we want the normal to point outwards, and positive curvature means outwards
-			float k = angle_one - angle_two;
-			//k*=-1;
+			if(current.y > prior.y) { angle_one *= -1;}
+			if(next.y > current.y) { angle_two *= -1;}
 
+			float exterior_angle = angle_two - angle_one;
+
+			float w = PVector.sub(prior, next).mag();
+
+			float k = 2*sin(exterior_angle)/w;
 			curvatures.add(k);
 		}
 
