@@ -232,9 +232,9 @@ void deform(){
 			p.y += brush.force.y;
 		}
   }
-  
+
   // Move onto constraint
-  my_splash.aprojectPositions(initial_area);
+  my_splash.projectPositions(initial_area);
 }
 
 void reweight(float weigth_scale){

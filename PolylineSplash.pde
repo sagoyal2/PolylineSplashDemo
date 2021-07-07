@@ -2,6 +2,7 @@
 import java.util.*;
 
 float MESH_THRESHOLD = 10;
+float INITIAL_WEIGHT = 0.0002;
 
 public class PolylineSplash{
 
@@ -22,7 +23,7 @@ public class PolylineSplash{
 			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
 															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
 															(float)0));
-			weight.add(1.0);
+			weight.add(INITIAL_WEIGHT);
 		}
 
 		MESH_THRESHOLD = PVector.dist(splash.get(1), splash.get(2));
@@ -167,7 +168,7 @@ public class PolylineSplash{
 		stroke(c);
 		fill(c);
 		line(position.x, position.y, position.x +  scale*vector.x, position.y + scale*vector.y);
-		text(label, position.x + (scale+1)*vector.x, position.y + (scale+1)*vector.y);
+		text(nf(label,1, 7), position.x + (scale+1)*vector.x, position.y + (scale+1)*vector.y);
 		stroke(0, 0, 0);
 	}
 
@@ -198,7 +199,10 @@ public class PolylineSplash{
 	  		PVector mid = new PVector();
 	  		mid = PVector.lerp(a, b, 0.5);
 	  		splash.add((k+1)%splash.size(), mid);
-	  		weight.add((k+1)%splash.size(), 1.0);
+
+
+	  		float mid_weight = 0.5*(weight.get(k) + weight.get(k+1));
+	  		weight.add((k+1)%splash.size(), mid_weight);
 	  	}
 
 	  	//coarsen
@@ -244,19 +248,50 @@ public class PolylineSplash{
 
 	// Project onto constraint
 	public void projectPositions(float initial_area){
+		getJacobian();
 
 		// calculate lambda
-
 		float current_area = getArea();
-		println("current_area: " + current_area);
+		//println("current_area: " + current_area);
 
 
-		// find del_position vector
+		float numerator = -1*(current_area - initial_area);
 
+		float denominator_x = 0.0;
+		float denominator_y = 0.0;
+		for(int i = 0; i < splash.size(); i++){
+			denominator_x += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
+			denominator_y += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
+		}
 
+		float lambda_x = numerator/denominator_x;
+		float lambda_y = numerator/denominator_y;
+
+		// del position
+		for(int i = 0; i < splash.size(); i++){
+
+			PVector del_position = new PVector(	jacobian.get(i).x*lambda_x*weight.get(i),
+																					jacobian.get(i).y*lambda_y*weight.get(i));
+			// update position
+			splash.get(i).add(PVector.mult(del_position, 0.001));
+		}
 	}
-
 } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
