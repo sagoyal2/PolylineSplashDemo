@@ -272,8 +272,8 @@ public class PolylineSplash{
 			// PVector current = splash.get(i);
 			PVector next 		= splash.get((i + 1)%splash.size());
 
-			float dC_dx = 0.5*(-1*prior.y + next.y);
-			float dC_dy = 0.5*(prior.x + -1*next.x);
+			float dC_dx = 0.5*(-1.0*prior.y + next.y);
+			float dC_dy = 0.5*(prior.x + -1.0*next.x);
 
 			jacobian.add(new PVector(dC_dx, dC_dy, 0.0));
 		}
@@ -331,13 +331,20 @@ public class PolylineSplash{
 
 			// if(i == 1){
 			// 	println("jacobian.get(i).x: " + jacobian.get(1).x + " jacobian.get(i).y " + jacobian.get(1).y + 
-			// 					" lambda: " + lambda + " weight.get(i) " + )
+			// 					" lambda: " + lambda + " weight.get(i) " + weight.get(i) + " numerator: " + -numerator +
+			// 					" current_area: " + current_area + " initial_area: " + initial_area);
 			// }
+
+			/*
+			jacobian.get(i).x: 37.0253 jacobian.get(i).y 4.677246 lambda: -17397.662 weight.get(i) 2.0E-4 numerator: 286410.44
+			jacobian.get(i).x: 37.110443 jacobian.get(i).y 4.68808 lambda: -14739.427 weight.get(i) 2.0E-4 numerator: 298603.6 current_area: 298602.6 initial_area: -1.0
+
+			*/
 
 			PVector del_position = new PVector(	jacobian.get(i).x*lambda*weight.get(i),
 																					jacobian.get(i).y*lambda*weight.get(i));
 			// update position
-			splash.get(i).add(PVector.mult(del_position, 0.001));
+			splash.get(i).add(PVector.mult(del_position, 1));
 		}
 	}
 

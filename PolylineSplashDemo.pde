@@ -76,7 +76,7 @@ void reset(){
 	my_splash 		= new PolylineSplash(width, height, MESH_RESOLUTION, INITIAL_DROPLET_RADIUS);
 	undo_splash 	= new LinkedList<PolylineSplash>();
 
-	float initial_area = my_splash.getArea();
+	initial_area = my_splash.getArea();
   println("initial_area: " + initial_area);
 }
 
