@@ -328,6 +328,10 @@ void reweight(float weigth_scale){
   	float sqr_dist = (p.x - mouseX)*(p.x - mouseX) + (p.y - mouseY)*(p.y - mouseY);
 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
 			float prior_weight = my_splash.weight.get(i);
+
+			if(prior_weight > 100.0){
+				prior_weight = 100.0;
+			}
 			my_splash.weight.set(i, weigth_scale*prior_weight);
 		}
   }

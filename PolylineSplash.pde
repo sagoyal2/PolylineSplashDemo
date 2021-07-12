@@ -2,7 +2,7 @@
 import java.util.*;
 
 float MESH_THRESHOLD = 10;
-float INITIAL_WEIGHT = 0.0002;
+float INITIAL_WEIGHT = 50;
 
 public class PolylineSplash{
 
@@ -60,10 +60,15 @@ public class PolylineSplash{
 	}
 
 	public void viewPoints(){
+
+		color blue = color(0, 145 , 255); //bigger 		-- incompressable
+		color red = color(255, 68, 0);		//smaller		-- compressable
+
 		stroke(0);
 		for(int i = 0; i < splash.size(); i++){
 			PVector a = splash.get(i);
-  		fill(color(52, 125, 235));
+			float scaling = (1-(weight.get(i))/100);
+  		fill(lerpColor(blue, red, scaling));
   		circle(a.x, a.y, 6);
   	}
 	}
