@@ -457,31 +457,64 @@ public class PolylineSplash{
 	public void reParameterize(){
 
 		int iteration = 3;
-
 		while(iteration > 0){
+
+			// Move points left
+		  // int k = 0;
+		  // while(k < splash.size()){
+		  // 	PVector a = splash.get(k);
+		  // 	PVector b = splash.get((k+1)%splash.size());
+		  // 	float dist = a.dist(b);
+
+		  // 	if(dist > MESH_THRESHOLD){
+		  // 		PVector third = new PVector();
+		  // 		third  = PVector.lerp(a, b, 0.33);
+		  // 		a.set(third);
+		  // 	}
+		  // 	k++;
+		  // }
+
+
+			// Move points to be average of neighbors
 		  int k = 0;
-
 		  while(k < splash.size()){
+				PVector prior 	= splash.get((k + splash.size() - 1)%splash.size());
+				PVector current = splash.get(k);
+				PVector next 		= splash.get((k + 1)%splash.size());
 
-		  	PVector a = splash.get(k);
-		  	PVector b = splash.get((k+1)%splash.size());
-		  	float dist = a.dist(b);
-
-		  	if(dist > MESH_THRESHOLD){
-		  		PVector third = new PVector();
-		  		third  = PVector.lerp(a, b, 0.33);
-		  		a.set(third);
-		  	}
-
-		  	k++;
-		  }
-
+				PVector centroid = new PVector();
+				centroid = PVector.add(PVector.add(prior, current), next);
+				current.set(PVector.mult(centroid, 1.0/3.0));
+				k++;
+			}
 	  	iteration--;
 		}
 
 
 	}
 } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
