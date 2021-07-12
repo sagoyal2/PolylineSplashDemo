@@ -452,6 +452,35 @@ public class PolylineSplash{
 			drawVector(splash.get(i), normals.get(i), geo_color, geo_scale);
 		}
 	}
+
+	// Make mesh spacing uniform
+	public void reParameterize(){
+
+		int iteration = 3;
+
+		while(iteration > 0){
+		  int k = 0;
+
+		  while(k < splash.size()){
+
+		  	PVector a = splash.get(k);
+		  	PVector b = splash.get((k+1)%splash.size());
+		  	float dist = a.dist(b);
+
+		  	if(dist > MESH_THRESHOLD){
+		  		PVector third = new PVector();
+		  		third  = PVector.lerp(a, b, 0.33);
+		  		a.set(third);
+		  	}
+
+		  	k++;
+		  }
+
+	  	iteration--;
+		}
+
+
+	}
 } 
 
 
