@@ -152,6 +152,10 @@ void draw(){
   	fill(172, 167, 176);
   	text("DRIG_FLAG ON - press[d] to remove", 5, 145);
   }
+   if(VOLUME_FLAG){
+  	fill(172, 167, 176);
+  	text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
+  }
   fill(0);
 }
 
@@ -213,11 +217,11 @@ void keyPressed(){
 	  		iteration--;
   		}
 
-  		my_splash.setWeightToNeutral();
+  		//my_splash.setWeightToNeutral();
   	}
   }
   if(key == 'v'){
-  	VOLUME_FLAG != VOLUME_FLAG;
+  	VOLUME_FLAG = !VOLUME_FLAG;
   }
 }
 
@@ -240,6 +244,26 @@ void mouseWheel(MouseEvent event) {
 			BRUSH_RADIUS *= 1.1;
 		}else{
 			BRUSH_RADIUS *= 0.9; 
+		}
+
+
+		if(VOLUME_FLAG){
+			float increase_volume = -1.0;
+
+			if(e > 0.0){
+				initial_area *= 1.1;
+				increase_volume = 1.0;
+			}else{
+				initial_area *= 0.9;
+			}
+
+			changeVolume(increase_volume);
+
+		  // Move onto constraint
+		  my_splash.projectPositions(initial_area);
+
+		  // Make mesh spacing uniform
+		 	my_splash.reParameterize();
 		}
 	}
 }
@@ -335,6 +359,7 @@ void deform(){
 	  }
   }
 
+  // Should this be it's own method? QUOKKA!
 	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
 
   // Move onto constraint
@@ -365,6 +390,22 @@ void reweight(float weigth_scale){
 				prior_weight = 100.0;
 			}
 			my_splash.weight.set(i, weigth_scale*prior_weight);
+		}
+  }
+}
+
+void changeVolume(float direction){
+	// Simply move all points in direction of normal within initial radius of circle 
+  
+  my_splash.getNormals();
+
+	float scaling = 20;
+  for(int i = 0; i < my_splash.splash.size(); i++){
+  	PVector p = my_splash.splash.get(i);
+  	float sqr_dist = (p.x - mouseX)*(p.x - mouseX) + (p.y - mouseY)*(p.y - mouseY);
+
+		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
+			p.add(PVector.mult(my_splash.normals.get(i), scaling*direction));
 		}
   }
 }

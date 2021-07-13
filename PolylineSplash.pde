@@ -8,7 +8,7 @@ public class PolylineSplash{
 
 	ArrayList<PVector> splash;
 	ArrayList <PVector> future_splash;
-	private ArrayList<PVector> normals; //unit normals
+	ArrayList<PVector> normals; //unit normals
 	private ArrayList<Float> curvatures;
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
 	ArrayList<Float> weight; //represents alpha_i/mass
@@ -103,7 +103,7 @@ public class PolylineSplash{
 
 
 	// http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
-	private void getNormals(){
+	public void getNormals(){
 		normals.clear();
 
 		// first we calculate surface normal then combine and average neighbors to calculate point normal
@@ -141,9 +141,9 @@ public class PolylineSplash{
 		float normal_scale = 50;
 
 		for(int i = 0; i < normals.size(); i++){
-			//drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
+			drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
 			// drawVector(PVector.mult(PVector.add(splash.get(i), splash.get((i+1)%splash.size())), 0.5), normals.get(i), normal_color, normal_scale);
-			drawVectorWithLabel(splash.get(i), normals.get(i), i, normal_color, normal_scale);
+			// drawVectorWithLabel(splash.get(i), normals.get(i), i, normal_color, normal_scale);
 		}
 	}
 
@@ -154,6 +154,16 @@ public class PolylineSplash{
 		stroke(0, 0, 0);
 	}
 
+	private void drawVectorWithLabel(PVector position, PVector vector, float label, color c, float scale){
+		stroke(c);
+		fill(c);
+
+		float sign = label/abs(label);
+
+		line(position.x, position.y, position.x +  sign*scale*vector.x, position.y + sign*scale*vector.y);
+		text(nf(label,1, 0), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
+		stroke(0, 0, 0);
+	}
 
 	// https://www.youtube.com/watch?v=8JCR6z3GLVI&list=PL9_jI1bdZmz0hIrNCMQW1YmZysAiIYSSS&index=2&ab_channel=KeenanCrane
 	// We will maintain the following property: Total curvature flow remains constant throughout the flow
@@ -215,17 +225,6 @@ public class PolylineSplash{
 
 	}
 
-
-	private void drawVectorWithLabel(PVector position, PVector vector, float label, color c, float scale){
-		stroke(c);
-		fill(c);
-
-		float sign = label/abs(label);
-
-		line(position.x, position.y, position.x +  sign*scale*vector.x, position.y + sign*scale*vector.y);
-		text(nf(label,1, 0), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
-		stroke(0, 0, 0);
-	}
 
 	public void labelCurvature(){
 		getCurvature();
