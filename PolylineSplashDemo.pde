@@ -56,7 +56,7 @@ boolean MCF_FLAG = false;
 int mcf_clock = 100;
 boolean GEODESIC_FLAG = false;
 boolean IMAGE_FLAG = false;
-
+boolean DRIG_FLAG = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -87,7 +87,7 @@ void draw(){
   background(255);
 
   fill(0);
-  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g]", 5, 10); 
+  text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g], image[i], draw rig[d]", 5, 10); 
   text("#UNDOS: " + undo_splash.size(), 5, 25);
 
 
@@ -95,7 +95,7 @@ void draw(){
   drawBrushes();
 
   my_splash.refineMesh();
-  my_splash.viewPoints();
+  my_splash.viewPoints(DRIG_FLAG);
   if(NORMAL_FLAG){
   	my_splash.drawPointNormals();
   	fill(52, 125, 235);
@@ -142,11 +142,14 @@ void draw(){
   	fill(235, 64, 52);
   	text("IMAGE_FLAG ON - press[i] to remove", 5, 130);
 
-
   	// dashed line at center:
   	for(int i = 0; i < width; i+=10){
   		ellipse(i, height/2, 2, 2);
   	}
+  }
+  if(DRIG_FLAG){
+  	fill(172, 167, 176);
+  	text("DRIG_FLAG ON - press[d] to remove", 5, 145);
   }
   fill(0);
 
@@ -207,6 +210,24 @@ void keyPressed(){
   		// brish = new SplashBrush(mouseX, height/2.0 + mouseY);
   	}
   }
+  if(key == 'd'){
+  	DRIG_FLAG = !DRIG_FLAG;
+  	if(DRIG_FLAG){
+  		my_splash.startFutureSplash();
+  	}else{
+  		my_splash.projectToFuture();
+
+  		int iteration = 3;
+  		while(iteration > 0){
+	  		// Make mesh spacing uniform
+	  		my_splash.reParameterize();
+
+	  		// Move onto constraint
+	  		my_splash.projectPositions(initial_area);
+	  		iteration--;
+  		}
+  	}
+  }
 }
 
 void mouseWheel(MouseEvent event) {
@@ -259,13 +280,15 @@ void drawBrush(float x, float y)
 }
 
 void mousePressed() {
-  brush = new SplashBrush(mouseX, mouseY);
-  
-  if(IMAGE_FLAG){
-	  brish = new SplashBrush(mouseX, height - mouseY);
-  }
 
-  saveSplashState();
+	  brush = new SplashBrush(mouseX, mouseY);
+	  
+	  if(IMAGE_FLAG){
+		  brish = new SplashBrush(mouseX, height - mouseY);
+	  }
+
+	  saveSplashState();
+
 }
 
 void saveSplashState() {
@@ -274,6 +297,7 @@ void saveSplashState() {
 }
 
 void mouseDragged() {
+
   PVector new_position = new PVector(mouseX, mouseY, 0);
   brush.setForceBasedOnNewPosition(new_position);
 
@@ -282,9 +306,17 @@ void mouseDragged() {
   	brish.setForceBasedOnNewPosition(new_position_2);
   }
 
-  // solveAndDeform();
-  // move points within brush somehow
-  deform();
+
+  if(DRIG_FLAG){
+  	drawFuture();
+  }
+  else{
+
+	  // solveAndDeform();
+	  // move points within brush somehow
+	  deform();
+
+  }
 
   // Slide brush to newP:
   brush.setPosition(new_position);
@@ -292,6 +324,7 @@ void mouseDragged() {
   if(IMAGE_FLAG){
   	brish.setPosition(new_position_2);
   }
+
 }
 
 void deform(){
@@ -320,6 +353,16 @@ void deform(){
 
   // Make mesh spacing uniform
   my_splash.reParameterize();
+}
+
+void drawFuture(){
+	for (PVector p : my_splash.future_splash){
+		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
+		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
+			p.x += brush.force.x;
+			p.y += brush.force.y;
+		}
+  }
 }
 
 void reweight(float weigth_scale){

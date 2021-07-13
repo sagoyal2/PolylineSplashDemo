@@ -7,6 +7,7 @@ float INITIAL_WEIGHT = 50;
 public class PolylineSplash{
 
 	ArrayList<PVector> splash;
+	ArrayList <PVector> future_splash;
 	private ArrayList<PVector> normals; //unit normals
 	private ArrayList<Float> curvatures;
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
@@ -16,6 +17,7 @@ public class PolylineSplash{
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
 
 		splash 	= new ArrayList<PVector>();
+		future_splash 	= new ArrayList<PVector>();
 		normals = new ArrayList<PVector>();
 		curvatures = new ArrayList<Float>();
 		jacobian = new ArrayList<PVector>();
@@ -25,6 +27,7 @@ public class PolylineSplash{
 			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
 															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
 															(float)0));
+			future_splash.add(splash.get(i).copy());
 			weight.add(INITIAL_WEIGHT);
 		}
 
@@ -35,10 +38,12 @@ public class PolylineSplash{
 	public PolylineSplash(PolylineSplash copy_polylinesplash){
 
 		splash 	= new ArrayList<PVector>();
+		future_splash 	= new ArrayList<PVector>();
 		weight = new ArrayList<Float>();
 
 		for(int i = 0; i < copy_polylinesplash.splash.size(); i++){
 			splash.add(copy_polylinesplash.splash.get(i).copy());
+			future_splash.add(copy_polylinesplash.future_splash.get(i).copy());
 			weight.add(copy_polylinesplash.weight.get(i)); //I think this is correct?
 		}
 
@@ -59,7 +64,7 @@ public class PolylineSplash{
 	  }
 	}
 
-	public void viewPoints(){
+	public void viewPoints(boolean drig_flag){
 
 		color blue = color(0, 145 , 255); //bigger 		-- incompressable
 		color red = color(255, 68, 0);		//smaller		-- compressable
@@ -70,6 +75,16 @@ public class PolylineSplash{
 			float scaling = (1-(weight.get(i))/100);
   		fill(lerpColor(blue, red, scaling));
   		circle(a.x, a.y, 6);
+
+  		if(drig_flag){
+  			PVector b = future_splash.get(i);
+  			fill(172, 167, 176);
+  			circle(b.x, b.y, 6);
+  		
+  			if(PVector.dist(a,b) > 0.0){
+  				line(a.x, a.y, b.x, b.y);
+  			}
+  		}
   	}
 	}
 
@@ -238,6 +253,7 @@ public class PolylineSplash{
 	  		PVector mid = new PVector();
 	  		mid = PVector.lerp(a, b, 0.5);
 	  		splash.add((k+1)%splash.size(), mid);
+	  		future_splash.add((k+1)%splash.size(), mid);
 
 	  		float mid_weight = 0.5*(weight.get(k) + weight.get((k+1) %weight.size()));
 	  		weight.add((k+1)%splash.size(), mid_weight);
@@ -247,6 +263,7 @@ public class PolylineSplash{
 	  	else if(dist < MESH_THRESHOLD/2.4){
 	  		a.lerp(b, 0.5);
 	  		splash.remove((k+1)%splash.size());
+	  		future_splash.remove((k+1)%splash.size());
 	  		weight.remove((k+1)%splash.size());
 	  		k--;
 	  	}
@@ -494,8 +511,34 @@ public class PolylineSplash{
 			}
 	  	iteration--;
 		}
+	}
+
+	public void startFutureSplash(){
+		future_splash.clear();
+
+		for(PVector p: splash){
+			future_splash.add(p.copy());
+		}
+	}
+
+	public void projectToFuture(){
 
 
+		// modify weights based on those that (not)move
+		for(int i = 0; i < splash.size(); i++){
+			PVector a = splash.get(i);
+			PVector b = future_splash.get(i);
+			if(PVector.dist(a,b) > 0.0){
+				weight.set(i, 0.11);
+			}else{
+				weight.set(i, 100.00);
+			}
+		}
+
+		// move all current splash points to their new location
+		for(int i = 0; i < splash.size(); i++){
+			splash.set(i, future_splash.get(i).copy());
+		}
 	}
 } 
 
