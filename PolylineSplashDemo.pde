@@ -45,8 +45,8 @@
  */
 
 float BRUSH_RADIUS = 50.0;
-float MESH_RESOLUTION = 100;
-float INITIAL_DROPLET_RADIUS = 300;
+float MESH_RESOLUTION = 50;
+float INITIAL_DROPLET_RADIUS = 100;
 
 boolean NORMAL_FLAG = false;
 boolean CURVATURE_FLAG = false;
@@ -57,6 +57,7 @@ int mcf_clock = 100;
 boolean GEODESIC_FLAG = false;
 boolean IMAGE_FLAG = false;
 boolean DRIG_FLAG = false;
+boolean VOLUME_FLAG = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -116,7 +117,7 @@ void draw(){
   	text("WEIGHT_ADJUSTMENT_MODE ON - press[a] to remove", 5, 85);
   }
   if(MCF_FLAG){
-  	if(mcf_clock < 250){
+  	if(mcf_clock < 5){
   		fill(0);
   		text("Applying Mean Curvature Flow on iteration i: " + mcf_clock, 5, 100);
   		my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
@@ -152,21 +153,6 @@ void draw(){
   	text("DRIG_FLAG ON - press[d] to remove", 5, 145);
   }
   fill(0);
-
-  // float area = my_splash.getArea();
-  // println("Area: " + area);
-
- //  // Time Step with forces
- //  calculate_density();
- //  calculate_color_field(); //not actual color but rather 1/0
-
- //  zero_force_buffer();
-
-	// set_force_pressure();
- //  set_force_surface_tension();
-  // set_force_external();
-  // check_boundary();
-
 }
 
 void keyPressed(){
@@ -226,7 +212,12 @@ void keyPressed(){
 	  		my_splash.projectPositions(initial_area);
 	  		iteration--;
   		}
+
+  		my_splash.setWeightToNeutral();
   	}
+  }
+  if(key == 'v'){
+  	VOLUME_FLAG != VOLUME_FLAG;
   }
 }
 
@@ -281,13 +272,13 @@ void drawBrush(float x, float y)
 
 void mousePressed() {
 
-	  brush = new SplashBrush(mouseX, mouseY);
-	  
-	  if(IMAGE_FLAG){
-		  brish = new SplashBrush(mouseX, height - mouseY);
-	  }
+  brush = new SplashBrush(mouseX, mouseY);
+  
+  if(IMAGE_FLAG){
+	  brish = new SplashBrush(mouseX, height - mouseY);
+  }
 
-	  saveSplashState();
+  saveSplashState();
 
 }
 
@@ -306,16 +297,12 @@ void mouseDragged() {
   	brish.setForceBasedOnNewPosition(new_position_2);
   }
 
-
   if(DRIG_FLAG){
   	drawFuture();
   }
   else{
-
-	  // solveAndDeform();
 	  // move points within brush somehow
 	  deform();
-
   }
 
   // Slide brush to newP:
@@ -348,11 +335,13 @@ void deform(){
 	  }
   }
 
+	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
+
   // Move onto constraint
   my_splash.projectPositions(initial_area);
 
   // Make mesh spacing uniform
-  my_splash.reParameterize();
+ 	my_splash.reParameterize();
 }
 
 void drawFuture(){
@@ -378,30 +367,7 @@ void reweight(float weigth_scale){
 			my_splash.weight.set(i, weigth_scale*prior_weight);
 		}
   }
-
 }
-
-
-
-// void draw() {
-//   PVector dir = PVector.sub(mx(), pmx());
-//   float magnitude = dir.mag();
-//   background(255);
-//   fill(0);
-//   String info = "Degrees: " + int(degrees(dir.heading())) + "\nMagnitude: " + int(magnitude);
-//   text(info, 5, 5);
-//   translate(width/2, height/2);
-//   line(0, 0, dir.x, dir.y);
-// }
- 
-// PVector mx() {
-//   return new PVector(mouseX, mouseY);
-// }
- 
-// PVector pmx() {
-//   return new PVector(pmouseX, pmouseY);
-// }
-
 
 
 

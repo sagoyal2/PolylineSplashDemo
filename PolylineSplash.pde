@@ -141,8 +141,9 @@ public class PolylineSplash{
 		float normal_scale = 50;
 
 		for(int i = 0; i < normals.size(); i++){
-			drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
+			//drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
 			// drawVector(PVector.mult(PVector.add(splash.get(i), splash.get((i+1)%splash.size())), 0.5), normals.get(i), normal_color, normal_scale);
+			drawVectorWithLabel(splash.get(i), normals.get(i), i, normal_color, normal_scale);
 		}
 	}
 
@@ -222,7 +223,7 @@ public class PolylineSplash{
 		float sign = label/abs(label);
 
 		line(position.x, position.y, position.x +  sign*scale*vector.x, position.y + sign*scale*vector.y);
-		text(nf(label,1, 7), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
+		text(nf(label,1, 0), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
 		stroke(0, 0, 0);
 	}
 
@@ -524,20 +525,84 @@ public class PolylineSplash{
 	public void projectToFuture(){
 
 
-		// modify weights based on those that (not)move
+		// // modify weights based on those that (not)move
+		// for(int i = 0; i < splash.size(); i++){
+		// 	PVector a = splash.get(i);
+		// 	PVector b = future_splash.get(i);
+		// 	if(PVector.dist(a,b) > 0.0){
+		// 		weight.set(i, 100.11);
+		// 	}else{
+		// 		weight.set(i, 0.11);
+		// 	}
+		// }
+
+
+		// modified geodesic
+		geodesic.clear();
+		int closest_point_index = 0;
 		for(int i = 0; i < splash.size(); i++){
 			PVector a = splash.get(i);
 			PVector b = future_splash.get(i);
 			if(PVector.dist(a,b) > 0.0){
-				weight.set(i, 0.11);
+				closest_point_index = i;
+				geodesic.add(0.0);
 			}else{
-				weight.set(i, 100.00);
+				geodesic.add(Float.MAX_VALUE);
 			}
 		}
+		
+		// SWEEP DOWN/CCW:
+		float distSum = 0;
+		PVector pLast = splash.get(closest_point_index);
+		int     iNext = closest_point_index;
+		for (int k=1; k < geodesic.size(); k++) {
+			if (Math.signum(geodesic.get(iNext)) == 0){ distSum = 0;}
+			iNext--;
+			if (iNext < 0) iNext = geodesic.size()-1;
+			PVector pNext = splash.get(iNext);
+	    distSum += pNext.dist(pLast);
+	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+	    pLast = pNext;
+		}
+
+		// Sweep UP/CW;
+		distSum = 0;
+		pLast		=	splash.get(closest_point_index);
+		iNext 	= closest_point_index;
+		for (int k=1; k < geodesic.size(); k++) {
+			if (Math.signum(geodesic.get(iNext)) == 0){ distSum = 0;}
+			iNext++;
+			if (iNext >= geodesic.size()) iNext = 0;
+			PVector pNext = splash.get(iNext);
+	    distSum += pNext.dist(pLast);
+	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+	    pLast = pNext;
+		}	
+	
+		// scale geodesic weight
+		float maximum_dist = Float.MIN_VALUE;
+		for (int k = 0; k < geodesic.size(); k++){
+			if(geodesic.get(k) > maximum_dist){
+				maximum_dist = geodesic.get(k);
+			}
+		}
+
+		// set weight based on geodesic
+		for (int k = 0; k < geodesic.size(); k++){
+			float g = geodesic.get(k);
+			weight.set(k, 100*pow((maximum_dist - g)/(maximum_dist), 2));
+		}	
+		////////////////////////////////////////////////////
 
 		// move all current splash points to their new location
 		for(int i = 0; i < splash.size(); i++){
 			splash.set(i, future_splash.get(i).copy());
+		}
+	}
+
+	public void setWeightToNeutral(){
+		for(int i = 0; i < weight.size(); i++){
+			weight.set(i, INITIAL_WEIGHT);
 		}
 	}
 } 
