@@ -58,6 +58,7 @@ boolean GEODESIC_FLAG = false;
 boolean IMAGE_FLAG = false;
 boolean DRIG_FLAG = false;
 boolean VOLUME_FLAG = false;
+boolean DEPTH_FLAG = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -88,7 +89,7 @@ void draw(){
 	background(255);
 
 	fill(0);
-	text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g], image[i], draw rig[d]", 5, 10); 
+	text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g], image[i], draw rig[d], volume[v], depth[u]", 5, 10); 
 	text("#UNDOS: " + undo_splash.size(), 5, 25);
 
 
@@ -96,6 +97,7 @@ void draw(){
 	drawBrushes();
 
 	my_splash.refineMesh();
+	// my_splash.fixDepth(); - fix this!
 	my_splash.viewPoints(DRIG_FLAG);
 	if(NORMAL_FLAG){
 		my_splash.drawPointNormals();
@@ -162,6 +164,12 @@ void draw(){
 	 if(VOLUME_FLAG){
 		fill(172, 167, 176);
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
+	}
+	if(DEPTH_FLAG){
+		my_splash.showDepth();
+		fill(252, 132, 3);
+		text("DEPTH_FLAG ON - press[u] to remove", 5, 175);
+		//DEPTH_FLAG = false;
 	}
 	fill(0);
 }
@@ -255,6 +263,9 @@ void keyPressed(){
 	}
 	if(key == 'v'){
 		VOLUME_FLAG = !VOLUME_FLAG;
+	}
+	if(key == 'u'){
+		DEPTH_FLAG = !DEPTH_FLAG;
 	}
 }
 

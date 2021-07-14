@@ -13,6 +13,7 @@ public class PolylineSplash{
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
 	ArrayList<Float> weight; //represents alpha_i/mass
 	private ArrayList<Float> geodesic;
+	private ArrayList<Float> depth;
 
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
 
@@ -23,6 +24,7 @@ public class PolylineSplash{
 		jacobian = new ArrayList<PVector>();
 		weight = new ArrayList<Float>();
 		geodesic = new ArrayList<Float>();
+		depth = new ArrayList<Float>();
 		for(int i = 0; i < mesh_resolution; i++){
 			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
 															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
@@ -51,17 +53,18 @@ public class PolylineSplash{
 		curvatures = new ArrayList<Float>();
 		jacobian = new ArrayList<PVector>();
 		geodesic = new ArrayList<Float>();
+		depth = new ArrayList<Float>();
 	}
 
 	public void viewSurface(){
-	  fill(0);
-	  stroke(0);
+		fill(0);
+		stroke(0);
 
-	  for (int i = 0; i < splash.size(); i++) {
-	    PVector a = splash.get(i);
-	    PVector b = splash.get((i+1)%splash.size());
-	    line(a.x, a.y, b.x, b.y);
-	  }
+		for (int i = 0; i < splash.size(); i++) {
+			PVector a = splash.get(i);
+			PVector b = splash.get((i+1)%splash.size());
+			line(a.x, a.y, b.x, b.y);
+		}
 	}
 
 	public void viewPoints(boolean drig_flag){
@@ -73,19 +76,19 @@ public class PolylineSplash{
 		for(int i = 0; i < splash.size(); i++){
 			PVector a = splash.get(i);
 			float scaling = (1-(weight.get(i))/100);
-  		fill(lerpColor(blue, red, scaling));
-  		circle(a.x, a.y, 6);
+			fill(lerpColor(blue, red, scaling));
+			circle(a.x, a.y, 6);
 
-  		if(drig_flag){
-  			PVector b = future_splash.get(i);
-  			fill(172, 167, 176);
-  			circle(b.x, b.y, 6);
-  		
-  			if(PVector.dist(a,b) > 0.0){
-  				line(a.x, a.y, b.x, b.y);
-  			}
-  		}
-  	}
+			if(drig_flag){
+				PVector b = future_splash.get(i);
+				fill(172, 167, 176);
+				circle(b.x, b.y, 6);
+			
+				if(PVector.dist(a,b) > 0.0){
+					line(a.x, a.y, b.x, b.y);
+				}
+			}
+		}
 	}
 
 	// https://stackoverflow.com/questions/1406029/how-to-calculate-the-volume-of-a-3d-mesh-object-the-surface-of-which-is-made-up/1568551#1568551
@@ -96,9 +99,9 @@ public class PolylineSplash{
 			PVector a = splash.get(i);
 			PVector b = splash.get((i+1)%splash.size());
 			area += -b.x*a.y + a.x*b.y;
-  	}
-  	
-  	return area/2.0;
+		}
+		
+		return area/2.0;
 	}
 
 
@@ -117,7 +120,7 @@ public class PolylineSplash{
 			PVector b = splash.get((i+1)%splash.size());
 
 			PVector numerator = PVector.add(PVector.mult(x_axis, -1*(b.y - a.y)),
-									 										PVector.mult(y_axis, b.x - a.x));
+																			PVector.mult(y_axis, b.x - a.x));
 			float denominator = sqrt(sq(b.x - a.x) + sq(b.y - a.y));
 			surface_normals.add(PVector.mult(numerator, denominator));
 		}
@@ -161,7 +164,8 @@ public class PolylineSplash{
 		float sign = label/abs(label);
 
 		line(position.x, position.y, position.x +  sign*scale*vector.x, position.y + sign*scale*vector.y);
-		text(nf(label,1, 0), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
+		// text(nf(label, 2, 2), position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
+		text(label,  position.x + sign*(scale+1)*vector.x, position.y + sign*(scale+1)*vector.y);
 		stroke(0, 0, 0);
 	}
 
@@ -240,36 +244,36 @@ public class PolylineSplash{
 
 
 	public void refineMesh(){
-	  int k = 0;
+		int k = 0;
 
-	  while(k < splash.size()){
+		while(k < splash.size()){
 
-	  	PVector a = splash.get(k);
-	  	PVector b = splash.get((k+1)%splash.size());
-	  	float dist = a.dist(b);
+			PVector a = splash.get(k);
+			PVector b = splash.get((k+1)%splash.size());
+			float dist = a.dist(b);
 
-	  	//subdivide
-	  	if(dist > 2*MESH_THRESHOLD){
-	  		PVector mid = new PVector();
-	  		mid = PVector.lerp(a, b, 0.5);
-	  		splash.add((k+1)%splash.size(), mid);
-	  		future_splash.add((k+1)%splash.size(), mid);
+			//subdivide
+			if(dist > 2*MESH_THRESHOLD){
+				PVector mid = new PVector();
+				mid = PVector.lerp(a, b, 0.5);
+				splash.add((k+1)%splash.size(), mid);
+				future_splash.add((k+1)%splash.size(), mid);
 
-	  		float mid_weight = 0.5*(weight.get(k) + weight.get((k+1) %weight.size()));
-	  		weight.add((k+1)%splash.size(), mid_weight);
-	  	}
+				float mid_weight = 0.5*(weight.get(k) + weight.get((k+1) %weight.size()));
+				weight.add((k+1)%splash.size(), mid_weight);
+			}
 
-	  	//coarsen
-	  	else if(dist < MESH_THRESHOLD/2.4){
-	  		a.lerp(b, 0.5);
-	  		splash.remove((k+1)%splash.size());
-	  		future_splash.remove((k+1)%splash.size());
-	  		weight.remove((k+1)%splash.size());
-	  		k--;
-	  	}
+			//coarsen
+			else if(dist < MESH_THRESHOLD/2.4){
+				a.lerp(b, 0.5);
+				splash.remove((k+1)%splash.size());
+				future_splash.remove((k+1)%splash.size());
+				weight.remove((k+1)%splash.size());
+				k--;
+			}
 
-	  	k++;
-	  }
+			k++;
+		}
 	}
 
 
@@ -408,9 +412,9 @@ public class PolylineSplash{
 			iNext--;
 			if (iNext < 0) iNext = geodesic.size()-1;
 			PVector pNext = splash.get(iNext);
-	    distSum += pNext.dist(pLast);
-	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
-	    pLast = pNext;
+			distSum += pNext.dist(pLast);
+			if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+			pLast = pNext;
 		}
 
 		// Sweep UP/CW;
@@ -421,9 +425,9 @@ public class PolylineSplash{
 			iNext++;
 			if (iNext >= geodesic.size()) iNext = 0;
 			PVector pNext = splash.get(iNext);
-	    distSum += pNext.dist(pLast);
-	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
-	    pLast = pNext;
+			distSum += pNext.dist(pLast);
+			if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+			pLast = pNext;
 		}	
 
 
@@ -449,17 +453,17 @@ public class PolylineSplash{
 	}
 
 	private int indexOfClosestPoint(PVector center) {
-	  int   minIndex = -1;
-	  float minDist  = Float.MAX_VALUE;
-	  for (int k=0; k<splash.size(); k++) {
-	    PVector pk = splash.get(k);
-	    float   dk = center.dist(pk);//sloth sqrt
-	    if (dk < minDist) {
-	      minDist = dk;
-	      minIndex = k;
-	    }
-	  }
-	  return minIndex;
+		int   minIndex = -1;
+		float minDist  = Float.MAX_VALUE;
+		for (int k=0; k<splash.size(); k++) {
+			PVector pk = splash.get(k);
+			float   dk = center.dist(pk);//sloth sqrt
+			if (dk < minDist) {
+				minDist = dk;
+				minIndex = k;
+			}
+		}
+		return minIndex;
 	}
 
 	public void showGeodesic(float x, float y, float brush_radius){
@@ -482,24 +486,24 @@ public class PolylineSplash{
 		while(iteration > 0){
 
 			// Move points left
-		  // int k = 0;
-		  // while(k < splash.size()){
-		  // 	PVector a = splash.get(k);
-		  // 	PVector b = splash.get((k+1)%splash.size());
-		  // 	float dist = a.dist(b);
+			// int k = 0;
+			// while(k < splash.size()){
+			// 	PVector a = splash.get(k);
+			// 	PVector b = splash.get((k+1)%splash.size());
+			// 	float dist = a.dist(b);
 
-		  // 	if(dist > MESH_THRESHOLD){
-		  // 		PVector third = new PVector();
-		  // 		third  = PVector.lerp(a, b, 0.33);
-		  // 		a.set(third);
-		  // 	}
-		  // 	k++;
-		  // }
+			// 	if(dist > MESH_THRESHOLD){
+			// 		PVector third = new PVector();
+			// 		third  = PVector.lerp(a, b, 0.33);
+			// 		a.set(third);
+			// 	}
+			// 	k++;
+			// }
 
 
 			// Move points to be average of neighbors
-		  int k = 0;
-		  while(k < splash.size()){
+			int k = 0;
+			while(k < splash.size()){
 				PVector prior 	= splash.get((k + splash.size() - 1)%splash.size());
 				PVector current = splash.get(k);
 				PVector next 		= splash.get((k + 1)%splash.size());
@@ -509,7 +513,7 @@ public class PolylineSplash{
 				current.set(PVector.mult(centroid, 1.0/3.0));
 				k++;
 			}
-	  	iteration--;
+			iteration--;
 		}
 	}
 
@@ -559,9 +563,9 @@ public class PolylineSplash{
 			iNext--;
 			if (iNext < 0) iNext = geodesic.size()-1;
 			PVector pNext = splash.get(iNext);
-	    distSum += pNext.dist(pLast);
-	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
-	    pLast = pNext;
+			distSum += pNext.dist(pLast);
+			if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+			pLast = pNext;
 		}
 
 		// Sweep UP/CW;
@@ -573,9 +577,9 @@ public class PolylineSplash{
 			iNext++;
 			if (iNext >= geodesic.size()) iNext = 0;
 			PVector pNext = splash.get(iNext);
-	    distSum += pNext.dist(pLast);
-	    if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
-	    pLast = pNext;
+			distSum += pNext.dist(pLast);
+			if (geodesic.get(iNext) > distSum)  geodesic.set(iNext, distSum);
+			pLast = pNext;
 		}	
 	
 		// scale geodesic weight
@@ -603,6 +607,89 @@ public class PolylineSplash{
 		for(int i = 0; i < weight.size(); i++){
 			weight.set(i, INITIAL_WEIGHT);
 		}
+	}
+
+
+	private void getDepth(){
+		depth.clear();
+		getNormals();
+
+		// for each point, move in the negative normal direction with a radius of 
+		// 15
+		for(int i = 0; i < splash.size(); i++){
+			PVector source = splash.get(i);
+			PVector n = normals.get(i);
+
+			float min_depth = Float.MAX_VALUE;
+
+			for(int j = 0; j < splash.size(); j++){
+				if((i == j) || (i == (j+1)%splash.size())){
+					continue;
+				}
+
+				PVector a = splash.get(j);
+				PVector b = splash.get((j+1)%splash.size());
+
+				float m1 = (b.y - a.y)/(b.x - a.x);
+				float m2 = n.y/n.x;
+
+
+
+				float x_sol = (m1*a.x - m2*source.x - a.y + source.y)/(m1 - m2);
+				float y_sol = m1*(x_sol - a.x) + a.y;
+
+				PVector target = new PVector(x_sol, y_sol, 0.0);
+				float dist = PVector.dist(source, target);
+
+				PVector result = PVector.sub(target, source).normalize();
+				float angle = acos(PVector.dot(n, result));
+				
+
+				// if((dist < min_depth) && (angle > 0)){
+				// 	min_depth = dist;
+				// }
+
+				if((abs((PVector.dist(a, target) + PVector.dist(target, b)) - PVector.dist(a, b)) < 1) && (angle > 0)){
+					min_depth = dist;
+				}
+			}
+
+			if(min_depth > 1024){
+				min_depth = -1;
+			}
+			depth.add(min_depth);
+		}
+	}
+
+	public void showDepth(){
+		getNormals();
+		getDepth();
+
+		color depth_color = color(252, 132, 3);
+		float depth_scale = 50;
+
+		for(int i = 0; i < splash.size(); i++){
+			drawVectorWithLabel(splash.get(i), normals.get(i), depth.get(i), depth_color, depth_scale);
+		}
+	}
+
+	public void fixDepth(){
+		getDepth();
+
+		boolean inversion_present = true;
+
+		// QUOKKA - perhaps don't make this a while loop, and have it do something better
+		//while(inversion_present){
+			//inversion_present = false;
+			for(int i = 0; i < splash.size(); i++){
+				PVector p = splash.get(i);
+				if(depth.get(i) < MESH_THRESHOLD){
+					inversion_present = true;
+					p.x += 5*normals.get(i).x;
+					p.y += 5*normals.get(i).y;
+				}
+			}
+		//}
 	}
 } 
 
