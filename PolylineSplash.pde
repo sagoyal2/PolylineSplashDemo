@@ -141,9 +141,9 @@ public class PolylineSplash{
 		float normal_scale = 50;
 
 		for(int i = 0; i < normals.size(); i++){
-			drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
+			// drawVector(splash.get(i), normals.get(i), normal_color, normal_scale);
 			// drawVector(PVector.mult(PVector.add(splash.get(i), splash.get((i+1)%splash.size())), 0.5), normals.get(i), normal_color, normal_scale);
-			// drawVectorWithLabel(splash.get(i), normals.get(i), i, normal_color, normal_scale);
+			drawVectorWithLabel(splash.get(i), normals.get(i), i, normal_color, normal_scale);
 		}
 	}
 
