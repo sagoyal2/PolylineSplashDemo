@@ -12,7 +12,7 @@ public class PolylineSplash{
 	private ArrayList<Float> curvatures;
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
 	ArrayList<Float> weight; //represents alpha_i/mass
-	private ArrayList<Float> geodesic;
+	ArrayList<Float> geodesic;
 	private ArrayList<Float> depth;
 
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
@@ -324,7 +324,7 @@ public class PolylineSplash{
 		}
 	}
 
-	private void getGeodesic(float x, float y, float brush_radius){
+	public void getGeodesic(float x, float y, float brush_radius){
 		geodesic.clear();
 
 		PVector center = new PVector(x, y, 0.0);
@@ -377,11 +377,11 @@ public class PolylineSplash{
 
 		for (int k = 0; k < geodesic.size(); k++){
 			float g = geodesic.get(k);
-			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
+			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 7));
 		}		
 	}
 
-	private int indexOfClosestPoint(PVector center) {
+	public int indexOfClosestPoint(PVector center) {
 		int   minIndex = -1;
 		float minDist  = Float.MAX_VALUE;
 		for (int k=0; k<splash.size(); k++) {
@@ -411,7 +411,7 @@ public class PolylineSplash{
 	// Make mesh spacing uniform
 	public void reParameterize(){
 
-		int iteration = 3;
+		int iteration = 1;
 		while(iteration > 0){
 			// Move points to be average of neighbors
 			int k = 0;
@@ -421,8 +421,8 @@ public class PolylineSplash{
 				PVector next 		= splash.get((k + 1)%splash.size());
 
 				PVector centroid = new PVector();
-				centroid = PVector.add(PVector.add(prior, current), next);
-				current.set(PVector.mult(centroid, 1.0/3.0));
+				centroid = PVector.add(PVector.add(PVector.add(current, current), prior), next);
+				current.set(PVector.mult(centroid, 1.0/4.0));
 				k++;
 			}
 			iteration--;

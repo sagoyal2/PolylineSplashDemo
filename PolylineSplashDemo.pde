@@ -42,6 +42,7 @@ SplashBrush brush;
 SplashBrush brish;
 PolylineSplash my_splash;
 LinkedList<PolylineSplash> undo_splash;
+ArrayList<SplashBrush> pins  = new ArrayList<SplashBrush>();
 
 // Drivers
 /////////////////////////////////////////////////////////////////
@@ -58,6 +59,7 @@ void reset(){
 
 	initial_area = my_splash.getArea();
 	println("initial_area: " + initial_area);
+	pins.clear();
 }
 
 
@@ -78,6 +80,8 @@ void draw(){
 	controls.append("image[i], ");
 	controls.append("drawrig[d], ");
 	controls.append("depth[u], ");
+	controls.append("add pin[p], ");
+	controls.append("clear pin[c], ");
 	String all_controls = controls.toString();
 	text(all_controls, 5, 10);
 	text("#UNDOS: " + undo_splash.size(), 5, 25);
@@ -127,14 +131,19 @@ void draw(){
 		 * if filter IS present then we get small detailed changes
 		 * **/
 		if(!GEODESIC_FLAG){
-			// Make mesh spacing uniform
-			my_splash.reParameterize();
 
-			// Move onto constraint
-			my_splash.projectVolumePositions(initial_area);
+			applyWaterEffects(false);
+
+
+			// // Make mesh spacing uniform
+			// my_splash.reParameterize();
+
+			// // Move onto constraint
+			// my_splash.projectVolumePositions(initial_area);
 		}
 	}
 	if(GEODESIC_FLAG){
+		my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
 		fill(46, 166, 50);
 		text("GEODESIC_FLAG ON - press[g] to remove", 5, 115);
 	}
@@ -203,11 +212,15 @@ void keyPressed(){
 
 			int iteration = 3;
 			while(iteration > 0){
-				// Make mesh spacing uniform
-				my_splash.reParameterize();
+				// // Make mesh spacing uniform
+				// my_splash.reParameterize();
 
-				// Move onto constraint
-				my_splash.projectVolumePositions(initial_area);
+				// // Move onto constraint
+				// my_splash.projectVolumePositions(initial_area);
+
+
+				applyWaterEffects(false);
+
 				iteration--;
 			}
 
@@ -219,6 +232,16 @@ void keyPressed(){
 	}
 	if(key == 'u'){
 		DEPTH_FLAG = !DEPTH_FLAG;
+	}
+	if (key == 'p') {// pin/unpin
+		PVector pinPos = new PVector(mouseX, mouseY, 0);
+		// KelvinBrush pinBrush = new KelvinBrush(eps, nu);
+		SplashBrush pinBrush = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
+		pinBrush.setPosition(pinPos);
+		pins.add(pinBrush);
+	}
+	if (key == 'c') {// clear closest pin
+		removeClosestPin();
 	}
 }
 
@@ -239,16 +262,18 @@ void mouseWheel(MouseEvent event) {
 			// we might also want to apply some kinda of geodesic filter on where we insert the volume
 			// we can't directly place brush inside of the volume in 3D, something to think about
 			float volume_direction_scale = (scale > 1)? 1.0: -1.0;
-			volume_direction_scale *= 0.5*BRUSH_RADIUS;
-			changeVolume(volume_direction_scale);
+			volume_direction_scale *= 0.1*BRUSH_RADIUS;
+			changeVolume(volume_direction_scale, GEODESIC_FLAG);
 
-			//update new area
-			initial_area = my_splash.getArea();
+			applyWaterEffects(true);
 
-			// Move onto constraint
-			my_splash.projectVolumePositions(initial_area);
-			// Make mesh spacing uniform
-			my_splash.reParameterize();
+			// //update new area
+			// initial_area = my_splash.getArea();
+
+			// // Move onto constraint
+			// my_splash.projectVolumePositions(initial_area);
+			// // Make mesh spacing uniform
+			// my_splash.reParameterize();
 
 		}else{
 			BRUSH_RADIUS *= scale;
@@ -264,6 +289,13 @@ void drawBrushes() {
 	if(IMAGE_FLAG){
 		drawBrush(mouseX, height - mouseY);
 	}
+
+	noFill();
+	stroke(0, 255, 0);
+	for (SplashBrush pin : pins) {
+		// ellipse((float)pin.position.x, (float)pin.position.y, pin.radius, pin.radius);
+		circle(pin.position.x, pin.position.y, 2*pin.radius);
+	}
 }
 
 void drawBrush(float x, float y)
@@ -276,17 +308,14 @@ void drawBrush(float x, float y)
 		stroke(0,0,0);
 	}
 	circle(x, y, 2*BRUSH_RADIUS);
-	if(GEODESIC_FLAG){
-		my_splash.showGeodesic(x, y, BRUSH_RADIUS);
-	}
 }
 
 void mousePressed() {
 
-	brush = new SplashBrush(mouseX, mouseY);
+	brush = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
 	
 	if(IMAGE_FLAG){
-		brish = new SplashBrush(mouseX, height - mouseY);
+		brish = new SplashBrush(mouseX, height - mouseY, BRUSH_RADIUS);
 	}
 
 	saveSplashState();
@@ -300,20 +329,22 @@ void saveSplashState() {
 void mouseDragged() {
 
 	PVector new_position = new PVector(mouseX, mouseY, 0);
-	brush.setForceBasedOnNewPosition(new_position);
+	brush.setDisplacementBasedOnNewPosition(new_position);
 
 	PVector new_position_2 =  new PVector(mouseX, height - mouseY, 0);
 	if(IMAGE_FLAG){
-		brish.setForceBasedOnNewPosition(new_position_2);
+		brish.setDisplacementBasedOnNewPosition(new_position_2);
 	}
 
-	if(DRIG_FLAG){
-		drawFuture();
-	}
-	else{
-		// move points within brush somehow
-		deform();
-	}
+	// if(DRIG_FLAG){
+	// 	drawFuture();
+	// }
+	// else{
+	// 	// move points within brush somehow
+	// 	deform();
+	// }
+
+	solveAndDeform();
 
 	// Slide brush to newP:
 	brush.setPosition(new_position);
@@ -324,46 +355,107 @@ void mouseDragged() {
 
 }
 
-void deform(){
-	// Simply move all points within initial radius of circle over by force
-	for (PVector p : my_splash.splash){
-		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
-		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-			p.x += brush.force.x;
-			p.y += brush.force.y;
+void removeClosestPin() 
+{
+	if (pins.isEmpty()) return;
+
+	// FIND PIN CLOSEST TO MOUSE:
+	PVector p = new PVector(mouseX, mouseY, 0);
+	int   minIndex = -1;
+	float minDist  = Float.MAX_VALUE;
+	for (int k=0; k<pins.size(); k++) {
+		PVector pk = pins.get(k).position;
+		float   dk = p.dist(pk);//sloth sqrt
+		if (dk < minDist) {
+			minDist = dk;
+			minIndex = k;
 		}
 	}
 
-	if(IMAGE_FLAG){
-		// Simply move all points within initial radius of circle over by force
-		for (PVector p : my_splash.splash){
-			float sqr_dist = (p.x - brish.position.x)*(p.x - brish.position.x) + (p.y - brish.position.y)*(p.y - brish.position.y);
-			if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-				p.x += brish.force.x;
-				p.y += brish.force.y;
-			}
-		}
-	}
-
-	// Should this be it's own method? QUOKKA!
-	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
-
-	// Move onto constraint
-	my_splash.projectVolumePositions(initial_area);
-
-	// Make mesh spacing uniform
-	my_splash.reParameterize();
+	// REMOVE minIndex PIN:
+	pins.remove(minIndex);
 }
 
-void drawFuture(){
-	for (PVector p : my_splash.future_splash){
-		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
-		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-			p.x += brush.force.x;
-			p.y += brush.force.y;
-		}
+
+void solveAndDeform()
+{
+	try {
+		FastPinConstraintSolver2D solver = new FastPinConstraintSolver2D(brush);
+		for (SplashBrush pin : pins) solver.addPin(pin);
+		solver.solve();
+
+		//if (!GEODESIC_FLAG) {
+			for (PVector p0 : my_splash.splash)  solver.deform(p0);
+		//} 
+		// else {
+		// 	int index = my_splash.indexOfClosestPoint(brush.position);
+		// 	my_splash.getGeodesic(index);
+		// 	ArrayList<Float> g = my_splash.geodesic;
+		// 	// Deform with geodesic filter:
+		// 	for (int k=0; k<my_splash.splash.size(); k++) {
+		// 		PVector pk = my_splash.splash.get(k);
+		// 		PVector u  = solver.getDeformDisplacement(pk);
+		// 		float   r  = pk.dist(brush.position);
+		// 		float   re = (float)Math.sqrt(r*r + BRUSH_RADIUS*BRUSH_RADIUS);
+		// 		float   gr = (g.get(k))/re;
+		// 		float   a  = 2; // ** geodesic scale parameter **
+		// 		if (gr > a) {
+		// 			u.mult(1/(1+(gr-a)*(gr-a)));
+		// 		}
+		// 		pk.add(u);
+		// 	}
+		// }
+
+		boolean update_volume = true;
+		applyWaterEffects(update_volume);
+	}
+	catch(Exception e) {// singular matrix
+		System.out.println("Matrix is singular: reverting to simple brush.");
+		pins.clear();
+		// brush.deform(P);
 	}
 }
+
+// void deform(){
+// 	// Simply move all points within initial radius of circle over by force
+// 	for (PVector p : my_splash.splash){
+// 		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
+// 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
+// 			p.x += brush.force.x;
+// 			p.y += brush.force.y;
+// 		}
+// 	}
+
+// 	if(IMAGE_FLAG){
+// 		// Simply move all points within initial radius of circle over by force
+// 		for (PVector p : my_splash.splash){
+// 			float sqr_dist = (p.x - brish.position.x)*(p.x - brish.position.x) + (p.y - brish.position.y)*(p.y - brish.position.y);
+// 			if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
+// 				p.x += brish.force.x;
+// 				p.y += brish.force.y;
+// 			}
+// 		}
+// 	}
+
+// 	// Should this be it's own method? QUOKKA!
+// 	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
+
+// 	// Move onto constraint
+// 	my_splash.projectVolumePositions(initial_area);
+
+// 	// Make mesh spacing uniform
+// 	my_splash.reParameterize();
+// }
+
+// void drawFuture(){
+// 	for (PVector p : my_splash.future_splash){
+// 		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
+// 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
+// 			p.x += brush.force.x;
+// 			p.y += brush.force.y;
+// 		}
+// 	}
+// }
 
 void reweight(float weigth_scale){
 	for(int i = 0; i < my_splash.splash.size(); i++){
@@ -380,24 +472,50 @@ void reweight(float weigth_scale){
 	}
 }
 
-void changeVolume(float direction){
+void changeVolume(float direction, boolean with_geodesic){
 	saveSplashState();
+
+	if(with_geodesic){
+		my_splash.getGeodesic(mouseX, mouseY, BRUSH_RADIUS);
+	}
 
 	float mu = 0.9;
 	float nu = 0.3;
 	float a = 1.0/(4.0*PI*mu);
 	float b = a/(4.0*(1.0-nu));
 	float eps = 0.01;
-	float scaling = 2000;
+	float scaling = 200;
 
 	for(int i = 0; i < my_splash.splash.size(); i++){
 		PVector p = my_splash.splash.get(i);
 		PVector r = new PVector(p.x - mouseX, p.y - mouseY, 0.0);
 		float r_e = sqrt(r.magSq() + pow(eps,2));
 
+		float geo_scaling = 1.0;
 		float coef = 2*(b - a)*(1.0/pow(r_e,2) + (pow(eps, 2))/(2*pow(r_e, 4)));
-		p.add(PVector.mult(r, coef*scaling*direction));
+		
+		if(with_geodesic){
+			geo_scaling *= my_splash.geodesic.get(i);
+		}
+
+		p.add(PVector.mult(r, geo_scaling*coef*scaling*direction));
 	}
+}
+
+void applyWaterEffects(boolean reinitialize_area){
+
+	if(reinitialize_area){
+		initial_area = my_splash.getArea();
+	}
+
+	// Make mesh uniformally spaced
+	my_splash.reParameterize();
+
+	// Move onto volume constraint
+	my_splash.projectVolumePositions(initial_area);
+
+	//mean curvature flow
+	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
 }
 
 
