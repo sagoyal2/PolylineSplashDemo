@@ -1,43 +1,20 @@
-
-
-
-
-
-
-
-
-
-
 /** 
- *  Based off of:
- * 	Particle-Based Fluid Simulation for Interactive Applications
- *  Link: https://matthias-research.github.io/pages/publications/sca03.pdf
+ * 	
  * 
- *  SplashBrushDemo
- *  @author Samaksh (Avi) Goyal, 6/27/2021
+ * 	PolylineSplashDemo
+ * 	@author Samaksh (Avi) Goyal, 6/27/2021
  * 
+ * 	Core properties:
+ * 	Constant Volume Constraint
+ * 	Converservation of Momentum Constraint
  * 
+ * 	Syringe like Inflation / Deflation
  * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 	PolylineSplash Class:
- * 		- getArea()
- * 		- refine()
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
+ * 	Central Update:
+ * 	MCF
+ * 	project onto volume + mom
+ *  Laplacian based Reprarameterization
+ *
  * 
  * 
  * 
@@ -76,7 +53,6 @@ void setup(){
 
 void reset(){ 
 
-	// take in shape parameter?
 	my_splash 		= new PolylineSplash(width, height, MESH_RESOLUTION, INITIAL_DROPLET_RADIUS);
 	undo_splash 	= new LinkedList<PolylineSplash>();
 
@@ -88,17 +64,31 @@ void reset(){
 void draw(){
 	background(255);
 
-	fill(0);
-	text("CONTROLS: Radius[w-s], undo[z], show_normals[n], label_curvature[k], weight[w], adjust weight[a], MCF [m], geodesic[g], image[i], draw rig[d], volume[v], depth[u]", 5, 10); 
-	text("#UNDOS: " + undo_splash.size(), 5, 25);
 
+	fill(0);
+	StringBuilder controls = new StringBuilder();
+	controls.append("Radius[mouse wheel +/-], ");
+	controls.append("undo[z], ");
+	controls.append("show_normals[n], ");
+	controls.append("label_curvature[k], ");
+	controls.append("weight[w], ");
+	controls.append("adjust weight[a], ");
+	controls.append("MCF[m], ");
+	controls.append("geodesic[g], ");
+	controls.append("image[i], ");
+	controls.append("drawrig[d], ");
+	controls.append("depth[u], ");
+	String all_controls = controls.toString();
+	text(all_controls, 5, 10);
+	text("#UNDOS: " + undo_splash.size(), 5, 25);
 
 	// Visualize
 	drawBrushes();
-
 	my_splash.refineMesh();
 	// my_splash.fixDepth(); - fix this!
 	my_splash.viewPoints(DRIG_FLAG);
+
+
 	if(NORMAL_FLAG){
 		my_splash.drawPointNormals();
 		fill(52, 125, 235);
@@ -141,7 +131,7 @@ void draw(){
 			my_splash.reParameterize();
 
 			// Move onto constraint
-			my_splash.projectPositions(initial_area);
+			my_splash.projectVolumePositions(initial_area);
 		}
 	}
 	if(GEODESIC_FLAG){
@@ -162,7 +152,7 @@ void draw(){
 		text("DRIG_FLAG ON - press[d] to remove", 5, 145);
 	}
 	 if(VOLUME_FLAG){
-		fill(172, 167, 176);
+		fill(48, 174, 217);
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
 	}
 	if(DEPTH_FLAG){
@@ -184,40 +174,6 @@ void keyPressed(){
 	if (key == 'k'){
 		CURVATURE_FLAG = !CURVATURE_FLAG;
 	}
-	if (key == '1'){
-		// BRUSH_RADIUS *= 1.1;
-		// brush.setRadius(eps);
-
-		if(VOLUME_FLAG){
-			float increase_volume = -1.0;
-			changeVolume(increase_volume);
-
-			initial_area = my_splash.getArea();
-			// // Move onto constraint
-			my_splash.projectPositions(initial_area);
-			// // Make mesh spacing uniform
-			my_splash.reParameterize();
-		}else{
-			BRUSH_RADIUS *= 1.1;
-		}
-	}
-	if (key == '2'){ 
-		// BRUSH_RADIUS *= 0.9; 
-		// brush.setRadius(eps);
-
-		if(VOLUME_FLAG){
-			float increase_volume = 1.0;
-			changeVolume(increase_volume);
-
-			initial_area = my_splash.getArea();
-			// // Move onto constraint
-			my_splash.projectPositions(initial_area);
-			// // Make mesh spacing uniform
-			my_splash.reParameterize();
-		}else{
-			BRUSH_RADIUS *= 0.9;
-		}
-	}
 	if (key == 'm'){
 		MCF_FLAG = true;
 	}
@@ -237,9 +193,6 @@ void keyPressed(){
 	}
 	if (key == 'i'){
 		IMAGE_FLAG = !IMAGE_FLAG;
-		if(IMAGE_FLAG){
-			// brish = new SplashBrush(mouseX, height/2.0 + mouseY);
-		}
 	}
 	if(key == 'd'){
 		DRIG_FLAG = !DRIG_FLAG;
@@ -254,7 +207,7 @@ void keyPressed(){
 				my_splash.reParameterize();
 
 				// Move onto constraint
-				my_splash.projectPositions(initial_area);
+				my_splash.projectVolumePositions(initial_area);
 				iteration--;
 			}
 
@@ -272,51 +225,42 @@ void keyPressed(){
 void mouseWheel(MouseEvent event) {
 
 	float e = event.getCount();
+	float scale = (e > 0.0)? 1.1:0.9;
+
 	if (WEIGHT_MODE){
-		float weigth_scale;
-
-		if(e > 0.0){
-			weigth_scale = 1.1;
-		}else{
-			weigth_scale = 0.9; 
-		}
-
-		reweight(weigth_scale);
+		reweight(scale);
 	}
-	else{
-		if(e > 0.0){
-			BRUSH_RADIUS *= 1.1;
-		}else{
-			BRUSH_RADIUS *= 0.9; 
-		}
 
+	else{
 
 		if(VOLUME_FLAG){
-			float increase_volume = -1.0;
+			//QUOKKA the 0.5, 
+			// we need to figure out a way to scale the amount of volume we want to increase
+			// we might also want to apply some kinda of geodesic filter on where we insert the volume
+			// we can't directly place brush inside of the volume in 3D, something to think about
+			float volume_direction_scale = (scale > 1)? 1.0: -1.0;
+			volume_direction_scale *= 0.5*BRUSH_RADIUS;
+			changeVolume(volume_direction_scale);
 
-			if(e > 0.0){
-				initial_area *= 1.1;
-				increase_volume = 1.0;
-			}else{
-				initial_area *= 0.9;
-			}
-
-			changeVolume(increase_volume);
+			//update new area
+			initial_area = my_splash.getArea();
 
 			// Move onto constraint
-			my_splash.projectPositions(initial_area);
-
+			my_splash.projectVolumePositions(initial_area);
 			// Make mesh spacing uniform
 			my_splash.reParameterize();
+
+		}else{
+			BRUSH_RADIUS *= scale;
 		}
 	}
+
 }
 
 
 /////////////////////////////////////////////////////////////////
 void drawBrushes() {
 	drawBrush(mouseX, mouseY);
-
 	if(IMAGE_FLAG){
 		drawBrush(mouseX, height - mouseY);
 	}
@@ -332,7 +276,6 @@ void drawBrush(float x, float y)
 		stroke(0,0,0);
 	}
 	circle(x, y, 2*BRUSH_RADIUS);
-
 	if(GEODESIC_FLAG){
 		my_splash.showGeodesic(x, y, BRUSH_RADIUS);
 	}
@@ -347,7 +290,6 @@ void mousePressed() {
 	}
 
 	saveSplashState();
-
 }
 
 void saveSplashState() {
@@ -407,7 +349,7 @@ void deform(){
 	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
 
 	// Move onto constraint
-	my_splash.projectPositions(initial_area);
+	my_splash.projectVolumePositions(initial_area);
 
 	// Make mesh spacing uniform
 	my_splash.reParameterize();
@@ -441,24 +383,12 @@ void reweight(float weigth_scale){
 void changeVolume(float direction){
 	saveSplashState();
 
-	// // Simply move all points in direction of normal within initial radius of circle 	
-	// my_splash.getNormals();
-	// float scaling = 20;
-	// for(int i = 0; i < my_splash.splash.size(); i++){
-	// 	PVector p = my_splash.splash.get(i);
-	// 	float sqr_dist = (p.x - mouseX)*(p.x - mouseX) + (p.y - mouseY)*(p.y - mouseY);
-
-	// 	if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-	// 		p.add(PVector.mult(my_splash.normals.get(i), scaling*direction));
-	// 	}
-	// }
 	float mu = 0.9;
 	float nu = 0.3;
 	float a = 1.0/(4.0*PI*mu);
 	float b = a/(4.0*(1.0-nu));
 	float eps = 0.01;
-
-	float scaling = 20000;
+	float scaling = 2000;
 
 	for(int i = 0; i < my_splash.splash.size(); i++){
 		PVector p = my_splash.splash.get(i);
@@ -466,12 +396,8 @@ void changeVolume(float direction){
 		float r_e = sqrt(r.magSq() + pow(eps,2));
 
 		float coef = 2*(b - a)*(1.0/pow(r_e,2) + (pow(eps, 2))/(2*pow(r_e, 4)));
-		
-		// println("i: " + i + " coef*scaling*direction: " + coef*scaling*direction);
-
 		p.add(PVector.mult(r, coef*scaling*direction));
 	}
-
 }
 
 

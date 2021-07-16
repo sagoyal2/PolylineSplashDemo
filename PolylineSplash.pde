@@ -177,31 +177,6 @@ public class PolylineSplash{
 	private void getCurvature(){
 		curvatures.clear();
 
-		// Turning Angle:
-		// PVector x_axis = new PVector(1.0, 0.0, 0.0);
-
-		// for(int i = 0; i < splash.size(); i++){
-		// 	PVector prior 	= splash.get((i + splash.size() - 1)%splash.size());
-		// 	PVector current = splash.get(i);
-		// 	PVector next 		= splash.get((i + 1)%splash.size());
-
-
-		// 	PVector leg_one = PVector.sub(current, prior).normalize();
-		// 	PVector leg_two = PVector.sub(next, current).normalize();
-
-		// 	float angle_one = acos(PVector.dot(leg_one, x_axis));
-		// 	float angle_two = acos(PVector.dot(leg_two, x_axis));
-
-		// 	//here we add a -1 because we want the normal to point outwards, and positive curvature means outwards
-		// 	float k = angle_one - angle_two;
-		// 	//k*=-1;
-
-		// 	curvatures.add(k);
-		// }
-
-		//println("curvature: " + curvatures.get(1));
-
-
 		// Osculating Circle:
 		PVector x_axis = new PVector(1.0, 0.0, 0.0);
 
@@ -288,7 +263,7 @@ public class PolylineSplash{
 		}
 	}
 
-	public void getJacobian(){
+	private void getVolumeJacobian(){
 		jacobian.clear();
 
 		jacobian = new ArrayList<PVector>();
@@ -306,70 +281,24 @@ public class PolylineSplash{
 	}
 
 	// Project onto constraint
-	public void projectPositions(float initial_area){
-		getJacobian();
-
-		// // calculate lambda
-		// float current_area = getArea();
-		// //println("current_area: " + current_area);
-
-
-		// float numerator = -1*(current_area - initial_area);
-
-		// float denominator_x = 0.0;
-		// float denominator_y = 0.0;
-		// for(int i = 0; i < splash.size(); i++){
-		// 	denominator_x += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
-		// 	denominator_y += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
-		// }
-
-		// float lambda_x = numerator/denominator_x;
-		// float lambda_y = numerator/denominator_y;
-
-		// // del position
-		// for(int i = 0; i < splash.size(); i++){
-
-		// 	PVector del_position = new PVector(	jacobian.get(i).x*lambda_x*weight.get(i),
-		// 																			jacobian.get(i).y*lambda_y*weight.get(i));
-		// 	// update position
-		// 	splash.get(i).add(PVector.mult(del_position, 1));
-		// }
-
+	public void projectVolumePositions(float initial_area){
+		getVolumeJacobian();
 
 		// calculate lambda
 		float current_area = getArea();
-		//println("current_area: " + current_area);
-
-
 		float numerator = -1*(current_area - initial_area);
-
 		float denominator = 0.0;
+
 		for(int i = 0; i < splash.size(); i++){
 			denominator += jacobian.get(i).x*weight.get(i)*jacobian.get(i).x;
 			denominator += jacobian.get(i).y*weight.get(i)*jacobian.get(i).y;
 		}
-
 		float lambda = numerator/denominator;
-		//println("lambda: " + lambda);
 
 		// del position
 		for(int i = 0; i < splash.size(); i++){
-
-			// if(i == 1){
-			// 	println("jacobian.get(i).x: " + jacobian.get(1).x + " jacobian.get(i).y " + jacobian.get(1).y + 
-			// 					" lambda: " + lambda + " weight.get(i) " + weight.get(i) + " numerator: " + -numerator +
-			// 					" current_area: " + current_area + " initial_area: " + initial_area);
-			// }
-
-			/*
-			jacobian.get(i).x: 37.0253 jacobian.get(i).y 4.677246 lambda: -17397.662 weight.get(i) 2.0E-4 numerator: 286410.44
-			jacobian.get(i).x: 37.110443 jacobian.get(i).y 4.68808 lambda: -14739.427 weight.get(i) 2.0E-4 numerator: 298603.6 current_area: 298602.6 initial_area: -1.0
-
-			*/
-
 			PVector del_position = new PVector(	jacobian.get(i).x*lambda*weight.get(i),
 																					jacobian.get(i).y*lambda*weight.get(i));
-			// update position
 			splash.get(i).add(PVector.mult(del_position, 1));
 		}
 	}
@@ -484,23 +413,6 @@ public class PolylineSplash{
 
 		int iteration = 3;
 		while(iteration > 0){
-
-			// Move points left
-			// int k = 0;
-			// while(k < splash.size()){
-			// 	PVector a = splash.get(k);
-			// 	PVector b = splash.get((k+1)%splash.size());
-			// 	float dist = a.dist(b);
-
-			// 	if(dist > MESH_THRESHOLD){
-			// 		PVector third = new PVector();
-			// 		third  = PVector.lerp(a, b, 0.33);
-			// 		a.set(third);
-			// 	}
-			// 	k++;
-			// }
-
-
 			// Move points to be average of neighbors
 			int k = 0;
 			while(k < splash.size()){
@@ -526,20 +438,6 @@ public class PolylineSplash{
 	}
 
 	public void projectToFuture(){
-
-
-		// // modify weights based on those that (not)move
-		// for(int i = 0; i < splash.size(); i++){
-		// 	PVector a = splash.get(i);
-		// 	PVector b = future_splash.get(i);
-		// 	if(PVector.dist(a,b) > 0.0){
-		// 		weight.set(i, 100.11);
-		// 	}else{
-		// 		weight.set(i, 0.11);
-		// 	}
-		// }
-
-
 		// modified geodesic
 		geodesic.clear();
 		int closest_point_index = 0;
@@ -614,8 +512,6 @@ public class PolylineSplash{
 		depth.clear();
 		getNormals();
 
-		// for each point, move in the negative normal direction with a radius of 
-		// 15
 		for(int i = 0; i < splash.size(); i++){
 			PVector source = splash.get(i);
 			PVector n = normals.get(i);
@@ -633,8 +529,6 @@ public class PolylineSplash{
 				float m1 = (b.y - a.y)/(b.x - a.x);
 				float m2 = n.y/n.x;
 
-
-
 				float x_sol = (m1*a.x - m2*source.x - a.y + source.y)/(m1 - m2);
 				float y_sol = m1*(x_sol - a.x) + a.y;
 
@@ -644,11 +538,6 @@ public class PolylineSplash{
 				PVector result = PVector.sub(target, source).normalize();
 				float angle = acos(PVector.dot(n, result));
 				
-
-				// if((dist < min_depth) && (angle > 0)){
-				// 	min_depth = dist;
-				// }
-
 				if((abs((PVector.dist(a, target) + PVector.dist(target, b)) - PVector.dist(a, b)) < 1) && (angle > 0)){
 					min_depth = dist;
 				}
