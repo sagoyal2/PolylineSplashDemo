@@ -36,6 +36,7 @@ boolean IMAGE_FLAG = false;
 boolean DRIG_FLAG = false;
 boolean VOLUME_FLAG = false;
 boolean DEPTH_FLAG = false;
+boolean	SHOW_FUTURE = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -43,6 +44,8 @@ SplashBrush brish;
 PolylineSplash my_splash;
 LinkedList<PolylineSplash> undo_splash;
 ArrayList<SplashBrush> pins  = new ArrayList<SplashBrush>();
+ArrayList<SplashBrush> rigs  = new ArrayList<SplashBrush>();
+SplashBrush current_rig;
 
 // Drivers
 /////////////////////////////////////////////////////////////////
@@ -88,10 +91,10 @@ void draw(){
 
 	// Visualize
 	drawBrushes();
+	drawRigs();
 	my_splash.refineMesh();
 	// my_splash.fixDepth(); - fix this!
-	my_splash.viewPoints(DRIG_FLAG);
-
+	my_splash.viewPoints(SHOW_FUTURE);
 
 	if(NORMAL_FLAG){
 		my_splash.drawPointNormals();
@@ -193,7 +196,10 @@ void keyPressed(){
 		WEIGHT_MODE = !WEIGHT_MODE;
 	}
 	if (key == 'z'){//undo
-		if (undo_splash.size() > 0) {
+		if(DRIG_FLAG && rigs.size() > 0){
+			rigs.remove(rigs.size() - 1);
+		}
+		else if (undo_splash.size() > 0) {
 			my_splash = undo_splash.pollFirst();
 		}
 	}
@@ -205,26 +211,23 @@ void keyPressed(){
 	}
 	if(key == 'd'){
 		DRIG_FLAG = !DRIG_FLAG;
+
 		if(DRIG_FLAG){
-			my_splash.startFutureSplash();
+			//set up rigs (pins)
 		}else{
-			my_splash.projectToFuture();
-
-			int iteration = 3;
-			while(iteration > 0){
-				// // Make mesh spacing uniform
-				// my_splash.reParameterize();
-
-				// // Move onto constraint
-				// my_splash.projectVolumePositions(initial_area);
-
-
-				applyWaterEffects(false);
-
-				iteration--;
-			}
-
-			my_splash.setWeightToNeutral();
+			//deform to make rig
+			boolean with_rigs = true;
+			boolean show_future = false;
+			solveAndDeform(with_rigs, show_future);
+			rigs.clear();
+		}
+	}
+	if(key == ENTER){
+		SHOW_FUTURE = !SHOW_FUTURE;
+		if(DRIG_FLAG){
+			boolean with_rigs = true;
+			boolean show_future = true;
+			solveAndDeform(with_rigs, show_future);
 		}
 	}
 	if(key == 'v'){
@@ -296,6 +299,18 @@ void drawBrushes() {
 		// ellipse((float)pin.position.x, (float)pin.position.y, pin.radius, pin.radius);
 		circle(pin.position.x, pin.position.y, 2*pin.radius);
 	}
+
+	drawRigs();
+}
+
+void drawRigs(){
+	stroke(255, 128, 89);
+	for (SplashBrush rig : rigs){
+		circle(rig.position.x, rig.position.y, 2*rig.radius);
+		circle(rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y, 2*rig.radius);
+
+		line(rig.position.x, rig.position.y, rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y);
+	}
 }
 
 void drawBrush(float x, float y)
@@ -311,11 +326,15 @@ void drawBrush(float x, float y)
 }
 
 void mousePressed() {
-
-	brush = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
-	
-	if(IMAGE_FLAG){
-		brish = new SplashBrush(mouseX, height - mouseY, BRUSH_RADIUS);
+	if(DRIG_FLAG){
+		current_rig = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
+		rigs.add(current_rig);
+	}
+	else{
+		brush = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
+		if(IMAGE_FLAG){
+			brish = new SplashBrush(mouseX, height - mouseY, BRUSH_RADIUS);
+		}
 	}
 
 	saveSplashState();
@@ -328,32 +347,39 @@ void saveSplashState() {
 
 void mouseDragged() {
 
-	PVector new_position = new PVector(mouseX, mouseY, 0);
-	brush.setDisplacementBasedOnNewPosition(new_position);
+	if(DRIG_FLAG){
+		PVector new_position = new PVector(mouseX, mouseY, 0);
+		current_rig.setDisplacementBasedOnNewPosition(new_position);		
 
-	PVector new_position_2 =  new PVector(mouseX, height - mouseY, 0);
-	if(IMAGE_FLAG){
-		brish.setDisplacementBasedOnNewPosition(new_position_2);
+		noFill();
+		stroke(255, 128, 89);
+		SplashBrush rig = current_rig;
+		circle(rig.position.x, rig.position.y, 2*rig.radius);
+		circle(rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y, 2*rig.radius);
+		line(rig.position.x, rig.position.y, rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y);
+
 	}
+	else{
+		PVector new_position = new PVector(mouseX, mouseY, 0);
+		brush.setDisplacementBasedOnNewPosition(new_position);
 
-	// if(DRIG_FLAG){
-	// 	drawFuture();
-	// }
-	// else{
-	// 	// move points within brush somehow
-	// 	deform();
-	// }
+		PVector new_position_2 =  new PVector(mouseX, height - mouseY, 0);
+		if(IMAGE_FLAG){
+			brish.setDisplacementBasedOnNewPosition(new_position_2);
+		}
 
-	solveAndDeform();
+		boolean with_rigs = false;
+		solveAndDeform(with_rigs, false);
 
-	// Slide brush to newP:
-	brush.setPosition(new_position);
+		// Slide brush to newP:
+		brush.setPosition(new_position);
 
-	if(IMAGE_FLAG){
-		brish.setPosition(new_position_2);
+		if(IMAGE_FLAG){
+			brish.setPosition(new_position_2);
+		}
 	}
-
 }
+
 
 void removeClosestPin() 
 {
@@ -377,15 +403,28 @@ void removeClosestPin()
 }
 
 
-void solveAndDeform()
+void solveAndDeform(boolean with_rigs, boolean show_future)
 {
 	try {
-		FastPinConstraintSolver2D solver = new FastPinConstraintSolver2D(brush);
-		for (SplashBrush pin : pins) solver.addPin(pin);
-		solver.solve();
+		FastPinConstraintSolver2D solver;
+
+		if(with_rigs){
+			solver = new FastPinConstraintSolver2D();
+			for (SplashBrush rig : rigs) solver.addRig(rig);
+		}
+		else{
+			solver = new FastPinConstraintSolver2D(brush);
+			for (SplashBrush pin : pins) solver.addPin(pin);
+		}
+		solver.solve(with_rigs);
 
 		//if (!GEODESIC_FLAG) {
+		if(show_future){
+			my_splash.startFutureSplash();
+			for (PVector p0 : my_splash.future_splash)  solver.deform(p0);
+		}else{
 			for (PVector p0 : my_splash.splash)  solver.deform(p0);
+		}
 		//} 
 		// else {
 		// 	int index = my_splash.indexOfClosestPoint(brush.position);
@@ -416,46 +455,7 @@ void solveAndDeform()
 	}
 }
 
-// void deform(){
-// 	// Simply move all points within initial radius of circle over by force
-// 	for (PVector p : my_splash.splash){
-// 		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
-// 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-// 			p.x += brush.force.x;
-// 			p.y += brush.force.y;
-// 		}
-// 	}
 
-// 	if(IMAGE_FLAG){
-// 		// Simply move all points within initial radius of circle over by force
-// 		for (PVector p : my_splash.splash){
-// 			float sqr_dist = (p.x - brish.position.x)*(p.x - brish.position.x) + (p.y - brish.position.y)*(p.y - brish.position.y);
-// 			if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-// 				p.x += brish.force.x;
-// 				p.y += brish.force.y;
-// 			}
-// 		}
-// 	}
-
-// 	// Should this be it's own method? QUOKKA!
-// 	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
-
-// 	// Move onto constraint
-// 	my_splash.projectVolumePositions(initial_area);
-
-// 	// Make mesh spacing uniform
-// 	my_splash.reParameterize();
-// }
-
-// void drawFuture(){
-// 	for (PVector p : my_splash.future_splash){
-// 		float sqr_dist = (p.x - brush.position.x)*(p.x - brush.position.x) + (p.y - brush.position.y)*(p.y - brush.position.y);
-// 		if(sqr_dist < BRUSH_RADIUS*BRUSH_RADIUS){ 
-// 			p.x += brush.force.x;
-// 			p.y += brush.force.y;
-// 		}
-// 	}
-// }
 
 void reweight(float weigth_scale){
 	for(int i = 0; i < my_splash.splash.size(); i++){

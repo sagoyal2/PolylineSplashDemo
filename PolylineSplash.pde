@@ -67,7 +67,7 @@ public class PolylineSplash{
 		}
 	}
 
-	public void viewPoints(boolean drig_flag){
+	public void viewPoints(boolean SHOW_FUTURE){
 
 		color blue = color(0, 145 , 255); //bigger 		-- incompressable
 		color red = color(255, 68, 0);		//smaller		-- compressable
@@ -79,7 +79,7 @@ public class PolylineSplash{
 			fill(lerpColor(blue, red, scaling));
 			circle(a.x, a.y, 6);
 
-			if(drig_flag){
+			if(SHOW_FUTURE){
 				PVector b = future_splash.get(i);
 				fill(172, 167, 176);
 				circle(b.x, b.y, 6);

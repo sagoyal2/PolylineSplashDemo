@@ -23,7 +23,14 @@ class FastPinConstraintSolver2D
     c = null;
   }
 
-  public void solve() 
+
+  public FastPinConstraintSolver2D(){}
+
+  public void addRig(SplashBrush rig){
+    brushes.add(rig);
+  }
+
+  public void solve(boolean with_rigs) 
   {
     //long t0 = -System.nanoTime();
 
@@ -59,19 +66,29 @@ class FastPinConstraintSolver2D
     //t0 += System.nanoTime();
     //print("Assembly: "+t0/1000.+"ms;     ");
 
-
     //t0 = -System.nanoTime();
     // RHS: 
-    PVector u0 = brush.getDisplacementCopy();
-    u[0] = u0.x;  
-    u[1] = u0.y;
-    u[2] = u0.z; // wz control (natural twist-free brush --> 0)
+    
+    if(with_rigs){
+      for(int i = 0; i < n; i++){
+        SplashBrush curr_rig = brushes.get(i);
+        PVector u0 = curr_rig.getDisplacementCopy();
+        u[i*3 + 0] = u0.x;
+        u[i*3 + 1] = u0.y;
+        u[i*3 + 2] = u0.z;
+      }
+    }
+    else{
+      PVector u0 = brush.getDisplacementCopy();
+      u[0] = u0.x;  
+      u[1] = u0.y;
+      u[2] = u0.z; // wz control (natural twist-free brush --> 0)
+    }
 
     // SOLVE:
     InPlaceLU_Float LU = new InPlaceLU_Float(A);
     LU.solve(u, c);//u=RHS, c=SOLUTION
   }
-
 
   /** Deforms point using current control variables. Assumes brushes parameters do not change. */
   public void deform(PVector point) 
