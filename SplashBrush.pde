@@ -7,6 +7,9 @@ public class SplashBrush{
   float C1, C2, C3;
   float nu = 0.3;
 	PVector displacement = new PVector();
+  PVector mom_conv_disp = new PVector();
+  float mass;
+  PVector momentum = new PVector();
 
 
   public SplashBrush(float px, float py, float r) 
@@ -18,6 +21,8 @@ public class SplashBrush{
     C3 = r/(5-6*nu);
     C1 = C3*(3-4*nu);
     C2 = C3*2*(1-nu)*r*r;
+
+    mass = 0;
   }
 
   void setDisplacementBasedOnNewPosition(PVector new_position){
@@ -30,6 +35,12 @@ public class SplashBrush{
     PVector copy = new PVector();
     copy.set(displacement);
     return copy;
+  }
+
+  public void getMomentum(){
+    momentum = PVector.mult(displacement, mass);
+
+    println("momentum.x: " + momentum.x + " momentum.y: " + momentum.y);
   }
 
   void setPosition(PVector new_position){

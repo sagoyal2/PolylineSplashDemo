@@ -30,7 +30,7 @@ class FastPinConstraintSolver2D
     brushes.add(rig);
   }
 
-  public void solve(boolean with_rigs) 
+  public void solve(boolean with_rigs, boolean with_mom_constraint, PVector norm_total_momentum) 
   {
     //long t0 = -System.nanoTime();
 
@@ -73,6 +73,16 @@ class FastPinConstraintSolver2D
       for(int i = 0; i < n; i++){
         SplashBrush curr_rig = brushes.get(i);
         PVector u0 = curr_rig.getDisplacementCopy();
+
+        if(with_mom_constraint){
+          //v_i_new = v_i - m_i * (sum m_i*v_i)/(mTm)
+          u0.sub(PVector.mult(norm_total_momentum, curr_rig.mass));
+
+          // save what the momentum conversed displacement should be
+          curr_rig.mom_conv_disp.set(u0);          
+          //line(curr_rig.position.x, curr_rig.position.y, curr_rig.position.x + u0.x, curr_rig.position.y + u0.y);
+        }
+
         u[i*3 + 0] = u0.x;
         u[i*3 + 1] = u0.y;
         u[i*3 + 2] = u0.z;

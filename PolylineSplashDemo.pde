@@ -37,6 +37,7 @@ boolean DRIG_FLAG = false;
 boolean VOLUME_FLAG = false;
 boolean DEPTH_FLAG = false;
 boolean	SHOW_FUTURE = false;
+boolean WITH_MOM_CONSTRAINT = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -94,7 +95,7 @@ void draw(){
 	drawRigs();
 	my_splash.refineMesh();
 	// my_splash.fixDepth(); - fix this!
-	my_splash.viewPoints(SHOW_FUTURE);
+	my_splash.viewPoints(SHOW_FUTURE, WITH_MOM_CONSTRAINT);
 
 	if(NORMAL_FLAG){
 		my_splash.drawPointNormals();
@@ -164,6 +165,7 @@ void draw(){
 		text("DRIG_FLAG ON - press[d] to remove", 5, 145);
 	}
 	 if(VOLUME_FLAG){
+	 	//my_splash.showVolume();
 		fill(48, 174, 217);
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
 	}
@@ -218,16 +220,30 @@ void keyPressed(){
 			//deform to make rig
 			boolean with_rigs = true;
 			boolean show_future = false;
-			solveAndDeform(with_rigs, show_future);
+			boolean with_mom_constraint = false;
+			solveAndDeform(with_rigs, show_future, with_mom_constraint);
 			rigs.clear();
 		}
 	}
 	if(key == ENTER){
 		SHOW_FUTURE = !SHOW_FUTURE;
+		if(WITH_MOM_CONSTRAINT){
+			WITH_MOM_CONSTRAINT = false;
+		}
 		if(DRIG_FLAG){
 			boolean with_rigs = true;
 			boolean show_future = true;
-			solveAndDeform(with_rigs, show_future);
+			boolean with_mom_constraint = false;
+			solveAndDeform(with_rigs, show_future, with_mom_constraint);
+		}
+	}
+	if(key == TAB){
+		WITH_MOM_CONSTRAINT = !WITH_MOM_CONSTRAINT;
+		if(DRIG_FLAG && SHOW_FUTURE){
+			boolean with_rigs = true;
+			boolean show_future = true;
+			boolean with_mom_constraint = true;
+			solveAndDeform(with_rigs, show_future, with_mom_constraint);	
 		}
 	}
 	if(key == 'v'){
@@ -304,12 +320,18 @@ void drawBrushes() {
 }
 
 void drawRigs(){
-	stroke(255, 128, 89);
 	for (SplashBrush rig : rigs){
+		stroke(255, 128, 89);
 		circle(rig.position.x, rig.position.y, 2*rig.radius);
 		circle(rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y, 2*rig.radius);
 
 		line(rig.position.x, rig.position.y, rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y);
+
+		if(WITH_MOM_CONSTRAINT){
+			stroke(52, 174, 235);
+			line(rig.position.x, rig.position.y, rig.position.x + rig.mom_conv_disp.x, rig.position.y + rig.mom_conv_disp.y);
+		}
+
 	}
 }
 
@@ -369,7 +391,9 @@ void mouseDragged() {
 		}
 
 		boolean with_rigs = false;
-		solveAndDeform(with_rigs, false);
+		boolean show_future = false;
+		boolean with_mom_constraint = false;
+		solveAndDeform(with_rigs, show_future, with_mom_constraint);
 
 		// Slide brush to newP:
 		brush.setPosition(new_position);
@@ -380,6 +404,12 @@ void mouseDragged() {
 	}
 }
 
+void mouseReleased(){
+	if(DRIG_FLAG){
+		getMass();
+		current_rig.getMomentum();
+	}
+}
 
 void removeClosestPin() 
 {
@@ -403,20 +433,35 @@ void removeClosestPin()
 }
 
 
-void solveAndDeform(boolean with_rigs, boolean show_future)
+void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_constraint)
 {
 	try {
 		FastPinConstraintSolver2D solver;
+		PVector norm_total_momentum = new PVector();
+		float total_mass_sq = 0.0;
 
 		if(with_rigs){
 			solver = new FastPinConstraintSolver2D();
 			for (SplashBrush rig : rigs) solver.addRig(rig);
+
+			//if we have momentum constraints we will precompute sum(mi*vi)/mTm
+			if(with_mom_constraint){
+				for(SplashBrush rig : rigs){ 
+					norm_total_momentum.add(rig.momentum);
+					total_mass_sq += sq(rig.mass);
+				}
+				norm_total_momentum.div(total_mass_sq);
+
+				println("norm_total_momentum.x: " + norm_total_momentum.x + " norm_total_momentum.y: " + norm_total_momentum.y);
+			}
 		}
 		else{
 			solver = new FastPinConstraintSolver2D(brush);
 			for (SplashBrush pin : pins) solver.addPin(pin);
 		}
-		solver.solve(with_rigs);
+
+		//Set and solve u = K f, where here we are solving for f, after possibly updating u to be momemtum conserving
+		solver.solve(with_rigs, with_mom_constraint, norm_total_momentum);
 
 		//if (!GEODESIC_FLAG) {
 		if(show_future){
@@ -424,6 +469,9 @@ void solveAndDeform(boolean with_rigs, boolean show_future)
 			for (PVector p0 : my_splash.future_splash)  solver.deform(p0);
 		}else{
 			for (PVector p0 : my_splash.splash)  solver.deform(p0);
+
+			boolean update_volume = true;
+			applyWaterEffects(update_volume);
 		}
 		//} 
 		// else {
@@ -445,8 +493,6 @@ void solveAndDeform(boolean with_rigs, boolean show_future)
 		// 	}
 		// }
 
-		boolean update_volume = true;
-		applyWaterEffects(update_volume);
 	}
 	catch(Exception e) {// singular matrix
 		System.out.println("Matrix is singular: reverting to simple brush.");
@@ -456,6 +502,42 @@ void solveAndDeform(boolean with_rigs, boolean show_future)
 }
 
 
+void getMass(){
+	
+	int total_hits = 0;
+
+	// loop over all pixel locations on screen
+	for(int i = 1; i < width; i++){
+		for(int j = 1; j < height; j++){
+			PVector point = new PVector(i, j, 0.0);
+			boolean hit = my_splash.getIntersections(point);
+
+			if(hit){
+				total_hits++;
+
+				//intersection successfull call getA2D_3x3Block (K matrix) on point
+				float[] aij = new float[9];
+				current_rig.getA2D_3x3Block(point, aij);
+
+				//calculate forbenius norm
+				float f_norm = 0.0;
+				for (int i3=0; i3<3; i3++) {
+          for (int j3=0; j3<3; j3++) {
+            f_norm += sq(aij[3*i3+j3]);
+          }
+        }
+        f_norm = sqrt(f_norm);
+
+        //update brush/rig mass
+        current_rig.mass += f_norm;
+			}
+		}
+	}
+
+	current_rig.mass /= total_hits;
+
+	println("rig has mass: " + current_rig.mass);
+}
 
 void reweight(float weigth_scale){
 	for(int i = 0; i < my_splash.splash.size(); i++){

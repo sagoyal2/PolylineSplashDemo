@@ -67,7 +67,7 @@ public class PolylineSplash{
 		}
 	}
 
-	public void viewPoints(boolean SHOW_FUTURE){
+	public void viewPoints(boolean SHOW_FUTURE, boolean WITH_MOM_CONSTRAINT){
 
 		color blue = color(0, 145 , 255); //bigger 		-- incompressable
 		color red = color(255, 68, 0);		//smaller		-- compressable
@@ -81,12 +81,19 @@ public class PolylineSplash{
 
 			if(SHOW_FUTURE){
 				PVector b = future_splash.get(i);
-				fill(172, 167, 176);
+				
+				if(WITH_MOM_CONSTRAINT){
+					fill(52, 174, 235);
+				}
+				else{
+					fill(255, 128, 89);
+				}
 				circle(b.x, b.y, 6);
 			
-				if(PVector.dist(a,b) > 0.0){
-					line(a.x, a.y, b.x, b.y);
-				}
+				// fill(232, 233, 237);
+				// if(PVector.dist(a,b) > 0.0){
+				// 	line(a.x, a.y, b.x, b.y);
+				// }
 			}
 		}
 	}
@@ -104,6 +111,85 @@ public class PolylineSplash{
 		return area/2.0;
 	}
 
+	//https://stackoverflow.com/questions/217578/how-can-i-determine-whether-a-2d-point-is-within-a-polygon
+	public boolean getIntersections(PVector source){
+
+		int intersection_count = 0;
+
+		for(int j = 0; j < splash.size(); j++){
+
+			PVector a = splash.get(j);
+			PVector b = splash.get((j+1)%splash.size());
+
+			float m1 = (b.y - a.y)/(b.x - a.x);
+			float m2 = source.y/source.x;
+
+			float x_sol = (m1*a.x - m2*source.x - a.y + source.y)/(m1 - m2);
+			float y_sol = m1*(x_sol - a.x) + a.y;
+
+			PVector target = new PVector(x_sol, y_sol, 0.0);
+			// float dist = PVector.dist(source, target);
+
+			// PVector result = PVector.sub(target, source).normalize();
+			// float angle = acos(PVector.dot(n, result));
+			// && (angle > 0)
+			if((abs((PVector.dist(a, target) + PVector.dist(target, b)) - PVector.dist(a, b)) < 1) ){
+				intersection_count++;
+			}
+		}
+
+		// Early Out
+		if((intersection_count == 0) || (intersection_count%2 ==1)){
+			return false;
+		}
+
+
+		//https://stackoverflow.com/questions/10673740/how-to-check-if-a-point-x-y-is-inside-a-polygon-in-the-cartesian-coordinate-sy
+		float angle = 0;
+		PVector p1, p2;
+
+		for(int i=0 ; i<splash.size();i++){
+			PVector a = splash.get(i);
+			PVector b = splash.get((i+1)%splash.size());
+			p1 = PVector.sub(a, source);
+			p2 = PVector.sub(b, source);
+
+			float theta1 = atan2(p1.y, p1.x);
+			float theta2 = atan2(p2.y, p2.x);
+
+			float dtheta = theta2 - theta1;
+			if(dtheta > PI){
+				dtheta -= 2*PI;
+			}
+			if(dtheta < -1.*PI){
+				dtheta += 2*PI;
+			}
+
+			angle += dtheta;
+		}
+
+		if(abs(angle) < PI){
+			return false;
+		}else{
+			return true;
+		}
+
+	}
+
+	public void showVolume(){
+		//for each pixel color it blue if inside
+
+		color blue = color(52, 125, 235);
+		for(int i = 1; i < width; i++){
+			for(int j = 1; j < height; j++){
+
+				boolean hit = getIntersections(new PVector(i, j, 0.0));
+				if(hit){
+					set(i, j, blue);
+				}
+			}
+		}
+	}
 
 	// http://chenlab.ece.cornell.edu/Publication/Cha/icip01_Cha.pdf
 	public void getNormals(){
