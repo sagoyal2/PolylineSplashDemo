@@ -230,12 +230,12 @@ void keyPressed(){
 		if(WITH_MOM_CONSTRAINT){
 			WITH_MOM_CONSTRAINT = false;
 		}
-		if(DRIG_FLAG){
-			boolean with_rigs = true;
-			boolean show_future = true;
-			boolean with_mom_constraint = false;
-			solveAndDeform(with_rigs, show_future, with_mom_constraint);
-		}
+		// if(DRIG_FLAG){
+		// 	boolean with_rigs = true;
+		// 	boolean show_future = true;
+		// 	boolean with_mom_constraint = false;
+		// 	solveAndDeform(with_rigs, show_future, with_mom_constraint);
+		// }
 	}
 	if(key == TAB){
 		WITH_MOM_CONSTRAINT = !WITH_MOM_CONSTRAINT;
@@ -350,7 +350,7 @@ void drawBrush(float x, float y)
 void mousePressed() {
 	if(DRIG_FLAG){
 		current_rig = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
-		rigs.add(current_rig);
+		//rigs.add(current_rig);
 	}
 	else{
 		brush = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
@@ -380,6 +380,13 @@ void mouseDragged() {
 		circle(rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y, 2*rig.radius);
 		line(rig.position.x, rig.position.y, rig.position.x + rig.displacement.x, rig.position.y + rig.displacement.y);
 
+		boolean with_rigs = true;
+		boolean show_future = SHOW_FUTURE;
+		boolean with_mom_constraint = WITH_MOM_CONSTRAINT;
+		solveAndDeform(with_rigs, show_future, with_mom_constraint);
+
+		// do I need to do QUOKKA?
+		// current_rig.setPosition(new_position);
 	}
 	else{
 		PVector new_position = new PVector(mouseX, mouseY, 0);
@@ -406,6 +413,7 @@ void mouseDragged() {
 
 void mouseReleased(){
 	if(DRIG_FLAG){
+		rigs.add(current_rig);
 		getMass();
 		current_rig.getMomentum();
 	}
@@ -441,7 +449,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 		float total_mass_sq = 0.0;
 
 		if(with_rigs){
-			solver = new FastPinConstraintSolver2D();
+			solver = new FastPinConstraintSolver2D(current_rig);
 			for (SplashBrush rig : rigs) solver.addRig(rig);
 
 			//if we have momentum constraints we will precompute sum(mi*vi)/mTm
@@ -505,10 +513,11 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 void getMass(){
 	
 	int total_hits = 0;
+	int offset = 4;
 
 	// loop over all pixel locations on screen
-	for(int i = 1; i < width; i++){
-		for(int j = 1; j < height; j++){
+	for(int i = 1; i < width; i+=offset){
+		for(int j = 1; j < height; j+=offset){
 			PVector point = new PVector(i, j, 0.0);
 			boolean hit = my_splash.getIntersections(point);
 
@@ -529,7 +538,7 @@ void getMass(){
         f_norm = sqrt(f_norm);
 
         //update brush/rig mass
-        current_rig.mass += f_norm;
+        current_rig.mass += offset*offset*f_norm;
 			}
 		}
 	}
