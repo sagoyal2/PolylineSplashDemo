@@ -147,7 +147,7 @@ void draw(){
 		}
 	}
 	if(GEODESIC_FLAG){
-		my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
+		//my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
 		fill(46, 166, 50);
 		text("GEODESIC_FLAG ON - press[g] to remove", 5, 115);
 	}
@@ -170,10 +170,9 @@ void draw(){
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
 	}
 	if(DEPTH_FLAG){
-		my_splash.showDepth();
+		// my_splash.showDepth();
 		fill(252, 132, 3);
 		text("DEPTH_FLAG ON - press[u] to remove", 5, 175);
-		//DEPTH_FLAG = false;
 	}
 	fill(0);
 }
@@ -482,35 +481,63 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 		//Set and solve u = K f, where here we are solving for f, after possibly updating u to be momemtum conserving
 		solver.solve(with_rigs, with_mom_constraint, norm_total_momentum);
 
-		//if (!GEODESIC_FLAG) {
-		if(!final_position){
-			my_splash.startFutureSplash();
-			for (PVector p0 : my_splash.future_splash)  solver.deform(p0);
-		}else{
-			for (PVector p0 : my_splash.splash)  solver.deform(p0);
+		if (!(GEODESIC_FLAG || DEPTH_FLAG)) {
+			if(!final_position){
+				my_splash.startFutureSplash();
+				for (PVector p0 : my_splash.future_splash)  solver.deform(p0);
+			}else{
+				for (PVector p0 : my_splash.splash)  solver.deform(p0);
+
+				boolean update_volume = true;
+				applyWaterEffects(update_volume);
+			}
+		} 
+		else {
+			//int index = my_splash.indexOfClosestPoint(brush.position);
+			//my_splash.getGeodesic(index);
+			// my_splash.getGeodesic(brush.position.x, brush.position.y, BRUSH_RADIUS);
+			ArrayList<Float> g = null;
+			float maximum_g = Float.MIN_VALUE;
+
+			if(GEODESIC_FLAG){
+				my_splash.getGeodesic(brush.position.x, brush.position.y, BRUSH_RADIUS);
+				g = my_splash.geodesic;
+			}
+			else if(DEPTH_FLAG){
+				my_splash.getDepth();
+				g = my_splash.depth;
+			}
+
+			// scale geodesic/ depth weight
+			for (int k = 0; k < g.size(); k++){
+				if(g.get(k) > maximum_g){
+					maximum_g = g.get(k);
+				}
+			}
+
+			// Deform with geodesic filter:
+			for (int k=0; k<my_splash.splash.size(); k++) {
+				PVector pk = my_splash.splash.get(k);
+				PVector u  = solver.getDeformDisplacement(pk);
+				// float   r  = pk.dist(brush.position);
+				// float   re = (float)Math.sqrt(r*r + BRUSH_RADIUS*BRUSH_RADIUS);
+				// float   gr = (g.get(k))/re;
+				// float   a  = 2; // ** geodesic scale parameter **
+				// if (gr > a) {
+				// 	u.mult(1/(1+(gr-a)*(gr-a)));
+				// }
+				if(GEODESIC_FLAG){
+					u.mult(pow((maximum_g - g.get(k))/(maximum_g), 2));
+				}
+				if(DEPTH_FLAG){
+					u.mult(pow((g.get(k))/(maximum_g), 2));
+				}
+				pk.add(u);
+			}
 
 			boolean update_volume = true;
 			applyWaterEffects(update_volume);
 		}
-		//} 
-		// else {
-		// 	int index = my_splash.indexOfClosestPoint(brush.position);
-		// 	my_splash.getGeodesic(index);
-		// 	ArrayList<Float> g = my_splash.geodesic;
-		// 	// Deform with geodesic filter:
-		// 	for (int k=0; k<my_splash.splash.size(); k++) {
-		// 		PVector pk = my_splash.splash.get(k);
-		// 		PVector u  = solver.getDeformDisplacement(pk);
-		// 		float   r  = pk.dist(brush.position);
-		// 		float   re = (float)Math.sqrt(r*r + BRUSH_RADIUS*BRUSH_RADIUS);
-		// 		float   gr = (g.get(k))/re;
-		// 		float   a  = 2; // ** geodesic scale parameter **
-		// 		if (gr > a) {
-		// 			u.mult(1/(1+(gr-a)*(gr-a)));
-		// 		}
-		// 		pk.add(u);
-		// 	}
-		// }
 
 	}
 	catch(Exception e) {// singular matrix

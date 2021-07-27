@@ -13,7 +13,7 @@ public class PolylineSplash{
 	private ArrayList<PVector> jacobian; //1 by # of mesh points
 	ArrayList<Float> weight; //represents alpha_i/mass
 	ArrayList<Float> geodesic;
-	private ArrayList<Float> depth;
+	ArrayList<Float> depth;
 
 	public PolylineSplash(float width, float height, float mesh_resolution, float initial_radius){
 
@@ -453,18 +453,18 @@ public class PolylineSplash{
 			}
 		}		
 
-		// scale geodesic weight
-		float maximum_dist = Float.MIN_VALUE;
-		for (int k = 0; k < geodesic.size(); k++){
-			if(geodesic.get(k) > maximum_dist){
-				maximum_dist = geodesic.get(k);
-			}
-		}
+		// // scale geodesic weight
+		// float maximum_dist = Float.MIN_VALUE;
+		// for (int k = 0; k < geodesic.size(); k++){
+		// 	if(geodesic.get(k) > maximum_dist){
+		// 		maximum_dist = geodesic.get(k);
+		// 	}
+		// }
 
-		for (int k = 0; k < geodesic.size(); k++){
-			float g = geodesic.get(k);
-			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 7));
-		}		
+		// for (int k = 0; k < geodesic.size(); k++){
+		// 	float g = geodesic.get(k);
+		// 	geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
+		// }		
 	}
 
 	public int indexOfClosestPoint(PVector center) {
@@ -594,44 +594,72 @@ public class PolylineSplash{
 	}
 
 
-	private void getDepth(){
+	void getDepth(){
 		depth.clear();
 		getNormals();
+
+		// for(int i = 0; i < splash.size(); i++){
+		// 	PVector source = splash.get(i);
+		// 	PVector n = normals.get(i);
+
+		// 	float min_depth = Float.MAX_VALUE;
+
+		// 	for(int j = 0; j < splash.size(); j++){
+		// 		if((i == j) || (i == (j+1)%splash.size())){
+		// 			continue;
+		// 		}
+
+		// 		PVector a = splash.get(j);
+		// 		PVector b = splash.get((j+1)%splash.size());
+
+		// 		float m1 = (b.y - a.y)/(b.x - a.x);
+		// 		float m2 = n.y/n.x;
+
+		// 		float x_sol = (m1*a.x - m2*source.x - a.y + source.y)/(m1 - m2);
+		// 		float y_sol = m1*(x_sol - a.x) + a.y;
+
+		// 		PVector target = new PVector(x_sol, y_sol, 0.0);
+		// 		float dist = PVector.dist(source, target);
+
+		// 		PVector result = PVector.sub(target, source).normalize();
+		// 		float angle = acos(PVector.dot(n, result));
+				
+		// 		// && (angle > 0)
+		// 		if((abs(PVector.dist(a, target) + PVector.dist(target, b) - PVector.dist(a, b)) < 5) ){
+		// 			min_depth = dist;
+		// 		}
+		// 	}
+
+		// 	if(min_depth > 1024){
+		// 		min_depth = -1;
+		// 	}
+		// 	depth.add(min_depth);
+		// }
+
 
 		for(int i = 0; i < splash.size(); i++){
 			PVector source = splash.get(i);
 			PVector n = normals.get(i);
 
+
+			//float min_angle = PI;
 			float min_depth = Float.MAX_VALUE;
 
 			for(int j = 0; j < splash.size(); j++){
-				if((i == j) || (i == (j+1)%splash.size())){
-					continue;
-				}
+				if(i == j){continue;}
 
-				PVector a = splash.get(j);
-				PVector b = splash.get((j+1)%splash.size());
-
-				float m1 = (b.y - a.y)/(b.x - a.x);
-				float m2 = n.y/n.x;
-
-				float x_sol = (m1*a.x - m2*source.x - a.y + source.y)/(m1 - m2);
-				float y_sol = m1*(x_sol - a.x) + a.y;
-
-				PVector target = new PVector(x_sol, y_sol, 0.0);
-				float dist = PVector.dist(source, target);
-
+				PVector target = splash.get(j);
 				PVector result = PVector.sub(target, source).normalize();
-				float angle = acos(PVector.dot(n, result));
-				
-				if((abs((PVector.dist(a, target) + PVector.dist(target, b)) - PVector.dist(a, b)) < 1) && (angle > 0)){
-					min_depth = dist;
+				float angle = acos(PVector.dot(PVector.mult(n, -1.0), result));
+				float depth = PVector.dist(target, source);
+
+				if((abs(angle) < 0.5) && depth < min_depth){
+					//min_angle = angle;
+
+					min_depth = depth;
 				}
 			}
 
-			if(min_depth > 1024){
-				min_depth = -1;
-			}
 			depth.add(min_depth);
 		}
 	}
@@ -644,7 +672,11 @@ public class PolylineSplash{
 		float depth_scale = 50;
 
 		for(int i = 0; i < splash.size(); i++){
-			drawVectorWithLabel(splash.get(i), normals.get(i), depth.get(i), depth_color, depth_scale);
+			// if(i == 0){
+			// drawVectorWithLabel(splash.get(i), normals.get(i), depth.get(i), depth_color, -1*depth.get(i));
+
+			// }
+			drawVectorWithLabel(splash.get(i), normals.get(i), depth.get(i), depth_color, -1*depth.get(i));
 		}
 	}
 
@@ -667,88 +699,3 @@ public class PolylineSplash{
 		//}
 	}
 } 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
