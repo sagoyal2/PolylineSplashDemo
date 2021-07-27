@@ -220,8 +220,9 @@ void keyPressed(){
 			//deform to make rig
 			boolean with_rigs = true;
 			boolean show_future = false;
-			boolean with_mom_constraint = false;
-			solveAndDeform(with_rigs, show_future, with_mom_constraint);
+			boolean with_mom_constraint = WITH_MOM_CONSTRAINT;
+			boolean final_position = true;
+			solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);
 			rigs.clear();
 		}
 	}
@@ -243,7 +244,8 @@ void keyPressed(){
 			boolean with_rigs = true;
 			boolean show_future = true;
 			boolean with_mom_constraint = true;
-			solveAndDeform(with_rigs, show_future, with_mom_constraint);	
+			boolean final_position = false;
+			solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);	
 		}
 	}
 	if(key == 'v'){
@@ -365,6 +367,8 @@ void mousePressed() {
 void saveSplashState() {
 	PolylineSplash previous = new PolylineSplash(my_splash);
 	undo_splash.addFirst(previous);
+
+	if (undo_splash.size() > 100) undo_splash.removeLast();
 }
 
 void mouseDragged() {
@@ -383,7 +387,8 @@ void mouseDragged() {
 		boolean with_rigs = true;
 		boolean show_future = SHOW_FUTURE;
 		boolean with_mom_constraint = WITH_MOM_CONSTRAINT;
-		solveAndDeform(with_rigs, show_future, with_mom_constraint);
+		boolean final_position = false;
+		solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);
 
 		// do I need to do QUOKKA?
 		// current_rig.setPosition(new_position);
@@ -400,7 +405,8 @@ void mouseDragged() {
 		boolean with_rigs = false;
 		boolean show_future = false;
 		boolean with_mom_constraint = false;
-		solveAndDeform(with_rigs, show_future, with_mom_constraint);
+		boolean final_position = true;
+		solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);
 
 		// Slide brush to newP:
 		brush.setPosition(new_position);
@@ -441,7 +447,7 @@ void removeClosestPin()
 }
 
 
-void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_constraint)
+void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_constraint, boolean final_position)
 {
 	try {
 		FastPinConstraintSolver2D solver;
@@ -449,7 +455,12 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 		float total_mass_sq = 0.0;
 
 		if(with_rigs){
-			solver = new FastPinConstraintSolver2D(current_rig);
+			if(!final_position){
+				solver = new FastPinConstraintSolver2D(current_rig);
+			}else{
+				solver = new FastPinConstraintSolver2D();
+			}
+
 			for (SplashBrush rig : rigs) solver.addRig(rig);
 
 			//if we have momentum constraints we will precompute sum(mi*vi)/mTm
@@ -460,7 +471,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 				}
 				norm_total_momentum.div(total_mass_sq);
 
-				println("norm_total_momentum.x: " + norm_total_momentum.x + " norm_total_momentum.y: " + norm_total_momentum.y);
+				// println("norm_total_momentum.x: " + norm_total_momentum.x + " norm_total_momentum.y: " + norm_total_momentum.y);
 			}
 		}
 		else{
@@ -472,7 +483,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 		solver.solve(with_rigs, with_mom_constraint, norm_total_momentum);
 
 		//if (!GEODESIC_FLAG) {
-		if(show_future){
+		if(!final_position){
 			my_splash.startFutureSplash();
 			for (PVector p0 : my_splash.future_splash)  solver.deform(p0);
 		}else{
