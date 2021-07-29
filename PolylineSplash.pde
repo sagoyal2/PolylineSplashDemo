@@ -453,18 +453,18 @@ public class PolylineSplash{
 			}
 		}		
 
-		// // scale geodesic weight
-		// float maximum_dist = Float.MIN_VALUE;
-		// for (int k = 0; k < geodesic.size(); k++){
-		// 	if(geodesic.get(k) > maximum_dist){
-		// 		maximum_dist = geodesic.get(k);
-		// 	}
-		// }
+		// scale geodesic weight
+		float maximum_dist = Float.MIN_VALUE;
+		for (int k = 0; k < geodesic.size(); k++){
+			if(geodesic.get(k) > maximum_dist){
+				maximum_dist = geodesic.get(k);
+			}
+		}
 
-		// for (int k = 0; k < geodesic.size(); k++){
-		// 	float g = geodesic.get(k);
-		// 	geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
-		// }		
+		for (int k = 0; k < geodesic.size(); k++){
+			float g = geodesic.get(k);
+			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
+		}		
 	}
 
 	public int indexOfClosestPoint(PVector center) {
@@ -698,4 +698,85 @@ public class PolylineSplash{
 			}
 		//}
 	}
+
+
+
+	public PVector findNecks(){
+		float NECK_THRESHOLD = 80;
+		Set<PVector> points_to_cluster = new HashSet<PVector>();
+
+		for(int i = 0; i < depth.size(); i++){
+			if(depth.get(i) < NECK_THRESHOLD){
+				points_to_cluster.add(splash.get(i));
+			}
+		}
+
+		//find neck
+		PVector neck = new PVector();
+		for(PVector p : points_to_cluster){
+			neck.add(p);
+		}
+
+		neck.div(points_to_cluster.size());
+		return neck;
+
+		// right way to do this is to find number of clusters, and then group points in said clusters
+	}
+
+
+
 } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

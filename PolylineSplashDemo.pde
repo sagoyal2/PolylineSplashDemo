@@ -136,7 +136,7 @@ void draw(){
 		 * **/
 		if(!GEODESIC_FLAG){
 
-			applyWaterEffects(false);
+			applyWaterEffects(false, 1);
 
 
 			// // Make mesh spacing uniform
@@ -147,7 +147,7 @@ void draw(){
 		}
 	}
 	if(GEODESIC_FLAG){
-		//my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
+		my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
 		fill(46, 166, 50);
 		text("GEODESIC_FLAG ON - press[g] to remove", 5, 115);
 	}
@@ -170,7 +170,7 @@ void draw(){
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
 	}
 	if(DEPTH_FLAG){
-		// my_splash.showDepth();
+		//my_splash.showDepth();
 		fill(252, 132, 3);
 		text("DEPTH_FLAG ON - press[u] to remove", 5, 175);
 	}
@@ -285,7 +285,7 @@ void mouseWheel(MouseEvent event) {
 			volume_direction_scale *= 0.1*BRUSH_RADIUS;
 			changeVolume(volume_direction_scale, GEODESIC_FLAG);
 
-			applyWaterEffects(true);
+			applyWaterEffects(true, 1);
 
 			// //update new area
 			// initial_area = my_splash.getArea();
@@ -463,7 +463,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 			for (SplashBrush rig : rigs) solver.addRig(rig);
 
 			//if we have momentum constraints we will precompute sum(mi*vi)/mTm
-			if(with_mom_constraint){
+			// if(with_mom_constraint){
 				for(SplashBrush rig : rigs){ 
 					norm_total_momentum.add(rig.momentum);
 					total_mass_sq += sq(rig.mass);
@@ -471,7 +471,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 				norm_total_momentum.div(total_mass_sq);
 
 				// println("norm_total_momentum.x: " + norm_total_momentum.x + " norm_total_momentum.y: " + norm_total_momentum.y);
-			}
+			// }
 		}
 		else{
 			solver = new FastPinConstraintSolver2D(brush);
@@ -489,13 +489,10 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 				for (PVector p0 : my_splash.splash)  solver.deform(p0);
 
 				boolean update_volume = true;
-				applyWaterEffects(update_volume);
+				applyWaterEffects(update_volume, 1);
 			}
 		} 
 		else {
-			//int index = my_splash.indexOfClosestPoint(brush.position);
-			//my_splash.getGeodesic(index);
-			// my_splash.getGeodesic(brush.position.x, brush.position.y, BRUSH_RADIUS);
 			ArrayList<Float> g = null;
 			float maximum_g = Float.MIN_VALUE;
 
@@ -519,24 +516,46 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 			for (int k=0; k<my_splash.splash.size(); k++) {
 				PVector pk = my_splash.splash.get(k);
 				PVector u  = solver.getDeformDisplacement(pk);
-				// float   r  = pk.dist(brush.position);
-				// float   re = (float)Math.sqrt(r*r + BRUSH_RADIUS*BRUSH_RADIUS);
-				// float   gr = (g.get(k))/re;
-				// float   a  = 2; // ** geodesic scale parameter **
-				// if (gr > a) {
-				// 	u.mult(1/(1+(gr-a)*(gr-a)));
-				// }
+
 				if(GEODESIC_FLAG){
-					u.mult(pow((maximum_g - g.get(k))/(maximum_g), 2));
+					u.mult(g.get(k));
 				}
 				if(DEPTH_FLAG){
 					u.mult(pow((g.get(k))/(maximum_g), 2));
 				}
+
 				pk.add(u);
 			}
 
+			int mcf_iteration = 1;
+
+			// deform in opposite direction of momentum
+			if(DEPTH_FLAG){
+				// will return a list later, but for now only a single pair
+				PVector neck = my_splash.findNecks();
+
+				// implement a mouse movement up in direction
+				// copied mouse press and drag
+				float BIG_EPS_RADIUS = 200;
+				brush = new SplashBrush(neck.x, neck.y, BIG_EPS_RADIUS);
+
+				float air_resistance_scale = -100;
+				println("norm_total_momentum.x: " + norm_total_momentum.x + " norm_total_momentum.y: " + norm_total_momentum.y);
+				PVector new_position = new PVector(neck.x + air_resistance_scale*norm_total_momentum.x, neck.y + air_resistance_scale*norm_total_momentum.y, 0);
+				brush.setDisplacementBasedOnNewPosition(new_position);
+
+				DEPTH_FLAG = false;
+				mcf_iteration = 40;
+
+				with_rigs = false;
+				show_future = false;
+				with_mom_constraint = false;
+				final_position = true;
+				solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);			
+			}
+
 			boolean update_volume = true;
-			applyWaterEffects(update_volume);
+			applyWaterEffects(update_volume, mcf_iteration);
 		}
 
 	}
@@ -631,20 +650,24 @@ void changeVolume(float direction, boolean with_geodesic){
 	}
 }
 
-void applyWaterEffects(boolean reinitialize_area){
+void applyWaterEffects(boolean reinitialize_area, int mcf_iteration){
 
-	if(reinitialize_area){
-		initial_area = my_splash.getArea();
+	for(int i = 0; i < mcf_iteration; i++){
+		if(reinitialize_area){
+			initial_area = my_splash.getArea();
+		}
+
+		// Make mesh uniformally spaced
+		my_splash.reParameterize();
+
+		// Move onto volume constraint
+		my_splash.projectVolumePositions(initial_area);
+
+		for(int j = 0; j < 5; j++){
+			//mean curvature flow
+			my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
+		}
 	}
-
-	// Make mesh uniformally spaced
-	my_splash.reParameterize();
-
-	// Move onto volume constraint
-	my_splash.projectVolumePositions(initial_area);
-
-	//mean curvature flow
-	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
 }
 
 
