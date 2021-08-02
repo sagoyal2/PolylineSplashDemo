@@ -25,9 +25,13 @@ public class PolylineSplash{
 		weight = new ArrayList<Float>();
 		geodesic = new ArrayList<Float>();
 		depth = new ArrayList<Float>();
+
+		float center_x = 7*width/8.0;
+		float center_y = 7*height/8.0;
+
 		for(int i = 0; i < mesh_resolution; i++){
-			splash.add(new PVector(	width/2.0+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
-															height/2.0+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
+			splash.add(new PVector(	center_x+(float)(initial_radius*Math.cos(2*Math.PI*i/(double)mesh_resolution)), 
+															center_y+(float)(initial_radius*Math.sin(2*Math.PI*i/(double)mesh_resolution)), 
 															(float)0));
 			future_splash.add(splash.get(i).copy());
 			weight.add(INITIAL_WEIGHT);
@@ -314,7 +318,7 @@ public class PolylineSplash{
 			float dist = a.dist(b);
 
 			//subdivide
-			if(dist > 2*MESH_THRESHOLD){
+			if(dist > 1.1*MESH_THRESHOLD){
 				PVector mid = new PVector();
 				mid = PVector.lerp(a, b, 0.5);
 				splash.add((k+1)%splash.size(), mid);
@@ -394,7 +398,7 @@ public class PolylineSplash{
 		getCurvature();
 		getGeodesic(x, y, brush_radius);
 
-		float flow_scale = 2;
+		float flow_scale = 10;
 		
 		// Explict Euler
 		for(int i = 0; i < splash.size(); i++){
@@ -463,7 +467,7 @@ public class PolylineSplash{
 
 		for (int k = 0; k < geodesic.size(); k++){
 			float g = geodesic.get(k);
-			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 2));
+			geodesic.set(k, pow((maximum_dist - g)/(maximum_dist), 5));
 		}		
 	}
 
@@ -507,8 +511,8 @@ public class PolylineSplash{
 				PVector next 		= splash.get((k + 1)%splash.size());
 
 				PVector centroid = new PVector();
-				centroid = PVector.add(PVector.add(PVector.add(current, current), prior), next);
-				current.set(PVector.mult(centroid, 1.0/4.0));
+				centroid = PVector.add(PVector.add(PVector.mult(current, 1.0), prior), next);
+				current.set(PVector.mult(centroid, 1.0/3.0));
 				k++;
 			}
 			iteration--;

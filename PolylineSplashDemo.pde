@@ -30,7 +30,7 @@ boolean CURVATURE_FLAG = false;
 boolean WEIGHT_FLAG = false;
 boolean WEIGHT_MODE = false;
 boolean MCF_FLAG = false;
-int mcf_clock = 100;
+int mcf_clock = 0;
 boolean GEODESIC_FLAG = false;
 boolean IMAGE_FLAG = false;
 boolean DRIG_FLAG = false;
@@ -38,6 +38,7 @@ boolean VOLUME_FLAG = false;
 boolean DEPTH_FLAG = false;
 boolean	SHOW_FUTURE = false;
 boolean WITH_MOM_CONSTRAINT = false;
+boolean ADD_BLOBBIES = false;
 
 float initial_area = -1.0;
 SplashBrush brush;
@@ -48,10 +49,12 @@ ArrayList<SplashBrush> pins  = new ArrayList<SplashBrush>();
 ArrayList<SplashBrush> rigs  = new ArrayList<SplashBrush>();
 SplashBrush current_rig;
 
+ArrayList<PVector> potential_blob_sites = new ArrayList<PVector>();
+
 // Drivers
 /////////////////////////////////////////////////////////////////
 void setup(){
-	size(1280, 1024);  
+	size(1280, 824);  
 	smooth(8);
 	reset();
 }
@@ -117,34 +120,7 @@ void draw(){
 		text("WEIGHT_ADJUSTMENT_MODE ON - press[a] to remove", 5, 85);
 	}
 	if(MCF_FLAG){
-		if(mcf_clock < 5){
-			fill(0);
-			text("Applying Mean Curvature Flow on iteration i: " + mcf_clock, 5, 100);
-			my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
-			mcf_clock++;
-		}
-		else{
-			saveSplashState();
-			MCF_FLAG = false;
-			mcf_clock = 0;
-		}
-
-		/**
-		 * NOTE THIS ALLOWS FOR FINE GRAIN CONTROL - small changes in mean curvature 
-		 * ie, if the filter is NOT present then we get global curvature fix,
-		 * if filter IS present then we get small detailed changes
-		 * **/
-		if(!GEODESIC_FLAG){
-
-			applyWaterEffects(false, 1);
-
-
-			// // Make mesh spacing uniform
-			// my_splash.reParameterize();
-
-			// // Move onto constraint
-			// my_splash.projectVolumePositions(initial_area);
-		}
+		run_MCF(new PVector(mouseX, mouseY, 0), GEODESIC_FLAG);
 	}
 	if(GEODESIC_FLAG){
 		my_splash.showGeodesic(mouseX, mouseY, BRUSH_RADIUS);
@@ -170,9 +146,13 @@ void draw(){
 		text("VOLUME_FLAG ON - press[v] to remove", 5, 160);
 	}
 	if(DEPTH_FLAG){
-		//my_splash.showDepth();
+		my_splash.showDepth();
 		fill(252, 132, 3);
 		text("DEPTH_FLAG ON - press[u] to remove", 5, 175);
+	}
+	if(ADD_BLOBBIES){
+		fill(0);
+		text("ADD_BLOBBIES ON - press[o] to remove", 5, 175);
 	}
 	fill(0);
 }
@@ -263,6 +243,10 @@ void keyPressed(){
 	if (key == 'c') {// clear closest pin
 		removeClosestPin();
 	}
+
+	if (key == 'o'){
+		ADD_BLOBBIES = !ADD_BLOBBIES;
+	}
 }
 
 void mouseWheel(MouseEvent event) {
@@ -283,9 +267,9 @@ void mouseWheel(MouseEvent event) {
 			// we can't directly place brush inside of the volume in 3D, something to think about
 			float volume_direction_scale = (scale > 1)? 1.0: -1.0;
 			volume_direction_scale *= 0.1*BRUSH_RADIUS;
-			changeVolume(volume_direction_scale, GEODESIC_FLAG);
+			changeVolume(volume_direction_scale, GEODESIC_FLAG, new PVector(mouseX, mouseY, 0.0));
 
-			applyWaterEffects(true, 1);
+			//applyWaterEffects(true, 1);
 
 			// //update new area
 			// initial_area = my_splash.getArea();
@@ -349,6 +333,9 @@ void drawBrush(float x, float y)
 }
 
 void mousePressed() {
+	potential_blob_sites.clear();
+	potential_blob_sites.add(new PVector(mouseX, mouseY, 0));
+
 	if(DRIG_FLAG){
 		current_rig = new SplashBrush(mouseX, mouseY, BRUSH_RADIUS);
 		//rigs.add(current_rig);
@@ -371,6 +358,7 @@ void saveSplashState() {
 }
 
 void mouseDragged() {
+	potential_blob_sites.add(new PVector(mouseX, mouseY, 0));
 
 	if(DRIG_FLAG){
 		PVector new_position = new PVector(mouseX, mouseY, 0);
@@ -422,6 +410,13 @@ void mouseReleased(){
 		getMass();
 		current_rig.getMomentum();
 	}
+
+	if(ADD_BLOBBIES){
+		potential_blob_sites.add(new PVector(mouseX, mouseY, 0));
+		sprinkle_blobs();
+	}
+
+	my_splash.reParameterize();
 }
 
 void removeClosestPin() 
@@ -488,7 +483,7 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 			}else{
 				for (PVector p0 : my_splash.splash)  solver.deform(p0);
 
-				boolean update_volume = true;
+				boolean update_volume = false;
 				applyWaterEffects(update_volume, 1);
 			}
 		} 
@@ -554,8 +549,8 @@ void solveAndDeform(boolean with_rigs, boolean show_future, boolean with_mom_con
 				solveAndDeform(with_rigs, show_future, with_mom_constraint, final_position);			
 			}
 
-			boolean update_volume = true;
-			applyWaterEffects(update_volume, mcf_iteration);
+			// boolean update_volume = true;
+			// applyWaterEffects(update_volume, mcf_iteration);
 		}
 
 	}
@@ -620,11 +615,73 @@ void reweight(float weigth_scale){
 	}
 }
 
-void changeVolume(float direction, boolean with_geodesic){
+void sprinkle_blobs(){
+
+	float bulb_scale;
+	float blob_radius = 50.0;
+	int blob_iteration = 3;
+
+	// // remove  blob at start
+	// PVector first_blob = potential_blob_sites.get(0);
+	// potential_blob_sites.remove(0);
+	// bulb_scale = 5;
+	// for(int j = 0; j < 3; j++){
+	// 	changeVolume(bulb_scale, false, first_blob);
+	// 	my_splash.refineMesh();
+	// }
+
+
+	// add  blob to end
+	PVector last_bulb = potential_blob_sites.get(potential_blob_sites.size() -1);
+	potential_blob_sites.remove(potential_blob_sites.size() -1);
+
+	bulb_scale = -25;
+	PVector bulb_pt = new PVector();
+	int total_pts = 0;
+	for(int j = 0; j < blob_iteration; j++){
+		// find closest points to last_bulb within 50 pixels of last_blub and take average
+		
+		for(PVector p: my_splash.splash){
+			if(abs(PVector.dist(p, last_bulb)) < blob_radius){
+				bulb_pt.add(p);
+				total_pts++;
+			}
+		}
+		bulb_pt.div(total_pts);
+
+		changeVolume(bulb_scale, true, bulb_pt);
+		my_splash.refineMesh();
+	}
+	run_MCF(bulb_pt, true);
+
+	// // add small blobbies in middle
+	// bulb_scale = -5;
+	// for(int j = 0; j < 4; j++){ //add small spurts in 3/4 locations
+	// 	Random rand = new Random();
+	// 	PVector bulb = potential_blob_sites.get(rand.nextInt(potential_blob_sites.size()));
+		
+	// 	//find closest points to last_bulb within 50 pixels of last_blub and take average
+	// 	bulb_pt = new PVector();
+	// 	total_pts = 0;
+	// 	for(PVector p: my_splash.splash){
+	// 		if(abs(PVector.dist(p, bulb)) < blob_radius){
+	// 			bulb_pt.add(p);
+	// 			total_pts++;
+	// 		}
+	// 	}
+	// 	bulb_pt.div(total_pts);
+
+	// 	changeVolume(bulb_scale, true, bulb_pt);
+	// }
+
+}
+
+
+void changeVolume(float direction, boolean with_geodesic, PVector location){
 	saveSplashState();
 
 	if(with_geodesic){
-		my_splash.getGeodesic(mouseX, mouseY, BRUSH_RADIUS);
+		my_splash.getGeodesic(location.x, location.y, BRUSH_RADIUS);
 	}
 
 	float mu = 0.9;
@@ -636,17 +693,51 @@ void changeVolume(float direction, boolean with_geodesic){
 
 	for(int i = 0; i < my_splash.splash.size(); i++){
 		PVector p = my_splash.splash.get(i);
-		PVector r = new PVector(p.x - mouseX, p.y - mouseY, 0.0);
+		PVector r = new PVector(p.x - location.x, p.y - location.y, 0.0);
 		float r_e = sqrt(r.magSq() + pow(eps,2));
 
 		float geo_scaling = 1.0;
 		float coef = 2*(b - a)*(1.0/pow(r_e,2) + (pow(eps, 2))/(2*pow(r_e, 4)));
 		
 		if(with_geodesic){
+			// println("with geo scaling");
 			geo_scaling *= my_splash.geodesic.get(i);
 		}
 
 		p.add(PVector.mult(r, geo_scaling*coef*scaling*direction));
+	}
+}
+
+void run_MCF(PVector location, boolean g_flag){
+	for(mcf_clock = 0; mcf_clock < 10; mcf_clock++){
+		fill(0);
+		text("Applying Mean Curvature Flow on iteration i: " + mcf_clock, 5, 100);
+		my_splash.mcf(location.x, location.y, BRUSH_RADIUS, g_flag);
+
+		my_splash.refineMesh();
+
+		boolean reinitialize_area = false;
+		applyWaterEffects(reinitialize_area, 1);
+	}
+
+	saveSplashState();
+	MCF_FLAG = false;
+
+	/**
+	 * NOTE THIS ALLOWS FOR FINE GRAIN CONTROL - small changes in mean curvature 
+	 * ie, if the filter is NOT present then we get global curvature fix,
+	 * if filter IS present then we get small detailed changes
+	 * **/
+	if(!GEODESIC_FLAG){
+
+		// applyWaterEffects(false, 1);
+
+
+		// // Make mesh spacing uniform
+		// my_splash.reParameterize();
+
+		// // Move onto constraint
+		// my_splash.projectVolumePositions(initial_area);
 	}
 }
 
@@ -657,43 +748,15 @@ void applyWaterEffects(boolean reinitialize_area, int mcf_iteration){
 			initial_area = my_splash.getArea();
 		}
 
-		// Make mesh uniformally spaced
-		my_splash.reParameterize();
+		// // Make mesh uniformally spaced
+		// my_splash.reParameterize();
 
 		// Move onto volume constraint
 		my_splash.projectVolumePositions(initial_area);
 
-		for(int j = 0; j < 5; j++){
-			//mean curvature flow
-			my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
-		}
+		// for(int j = 0; j < 5; j++){
+		// 	// mean curvature flow
+		// 	my_splash.mcf(mouseX, mouseY, BRUSH_RADIUS, GEODESIC_FLAG);
+		// }
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
